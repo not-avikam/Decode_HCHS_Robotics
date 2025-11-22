@@ -1,3 +1,9 @@
+### HCHS Robotics 
+
+This repository contains the code for the FIRST Tech Challenge team HCHS Robotics (24659) for the Decode 25-26 season.
+
+The README.md for the FTC SDK follows.
+
 ## NOTICE
 
 This repository contains the public FTC SDK for the DECODE (2025-2026) competition season.
