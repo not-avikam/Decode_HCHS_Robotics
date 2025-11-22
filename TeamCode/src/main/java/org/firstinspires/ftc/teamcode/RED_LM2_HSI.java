@@ -55,7 +55,7 @@ import org.firstinspires.ftc.vision.opencv.ImageRegion;
 
 @TeleOp(name = "Decode LM1", group = "StarterBot")
 //@Disabled
-public class RI3DPP_Red extends OpMode {
+public class RED_LM2_HSI extends OpMode {
     final double FEED_TIME_SECONDS = 0.80; //The feeder servos run this long when a shot is requested.
     final double STOP_SPEED = 0.0; //We send this power to the servos when we want them to stop.
     final double FULL_SPEED = 1.0;
