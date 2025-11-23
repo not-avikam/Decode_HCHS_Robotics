@@ -56,9 +56,7 @@ import org.firstinspires.ftc.vision.opencv.ImageRegion;
 @TeleOp(name = "Decode LM1", group = "StarterBot")
 //@Disabled
 public class RED_LM2_HSI extends OpMode {
-    final double FEED_TIME_SECONDS = 0.80; //The feeder servos run this long when a shot is requested.
     final double STOP_SPEED = 0.0; //We send this power to the servos when we want them to stop.
-    final double FULL_SPEED = 1.0;
     private Servo pitch = null;
 
     // Declare OpMode members.
@@ -69,7 +67,6 @@ public class RED_LM2_HSI extends OpMode {
     private DcMotorEx launcher = null;
     private DcMotorEx intake = null;
     private CRServo agigtator = null;
-    private double launchAngle;
 
     private enum IntakeState {
         ON,
@@ -168,20 +165,6 @@ public class RED_LM2_HSI extends OpMode {
     @Override
     public void loop() {
 
-        // TODO: tune these
-        double distanceToTarget = Math.sqrt(
-                Math.pow(follower.getPose().getX() - 137, 2) +
-                        Math.pow(follower.getPose().getY() - 142, 2)
-        );
-        double goalHeightDifference = 54;
-
-        double launchAngle = Math.acos(goalHeightDifference/distanceToTarget);
-
-        telemetry.addData("Launch Angle", launchAngle);
-
-        pitch.setPosition(launchAngle/300);
-
-
         follower.update();
         telemetryM.update();
         if (!slowMode) follower.setTeleOpDrive(
@@ -191,7 +174,7 @@ public class RED_LM2_HSI extends OpMode {
                 false // Robot Centric
         );
             //This is how it looks with slowMode on
-        else follower.setTeleOpDrive(
+        else if (slowMode) follower.setTeleOpDrive(
                 -gamepad1.left_stick_y * slowModeMultiplier,
                 -gamepad1.left_stick_x * slowModeMultiplier,
                 -gamepad1.right_stick_x * slowModeMultiplier,
@@ -242,16 +225,31 @@ public class RED_LM2_HSI extends OpMode {
 
         }
 
+        if (gamepad1.left_trigger != 0) {
+            aim();
+        }
+    }
+
+    public void aim() {
+
         score = follower.pathBuilder()
                 .addPath(new BezierLine(follower.getPose(), follower.getPose()))
                 .setHeadingInterpolation(HeadingInterpolator.facingPoint(scoreFace))
                 .build();
 
-        if (gamepad1.left_trigger != 0) {
-            follower.followPath(score);
-        }
-    }
+        double distanceToTarget = Math.sqrt(
+                Math.pow(follower.getPose().getX() - 137, 2) +
+                        Math.pow(follower.getPose().getY() - 142, 2)
+        );
+        double goalHeightDifference = 54;
 
+        double launchAngle = Math.acos(goalHeightDifference/distanceToTarget);
+
+        pitch.setPosition(launchAngle/300);
+        follower.followPath(score);
+        follower.update();
+        telemetry.addData("Launch Angle", launchAngle);
+    }
 }
 
 
