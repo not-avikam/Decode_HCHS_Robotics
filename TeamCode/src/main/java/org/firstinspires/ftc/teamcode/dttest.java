@@ -76,9 +76,9 @@ public class dttest extends OpMode {
     private PathChain score;
     private final Pose scoreFace = new Pose(137,142);
     private IntakeState intakeState = IntakeState.OFF;
-    private Follower follower;
-    public Pose startingPose; //See ExampleAuto to understand how to use this
-    private final Pose goalPose = new Pose(132, 134);
+    //private Follower follower;
+    //public Pose startingPose; See ExampleAuto to understand how to use this
+    //private final Pose goalPose = new Pose(132, 134);
     private TelemetryManager telemetryM;
     private boolean slowMode = false;
     private double slowModeMultiplier = 0.5;
@@ -113,9 +113,9 @@ public class dttest extends OpMode {
         //agigtator = hardwareMap.get(CRServo.class, "agigtator");
         //pitch = hardwareMap.get(Servo.class, "pitch");
 
-        follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(startingPose == null ? new Pose() : startingPose);
-        follower.update();
+        //follower = Constants.createFollower(hardwareMap);
+        //follower.setStartingPose(startingPose == null ? new Pose() : startingPose);
+        //follower.update();
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
 
         agigtatorState = agigtateState.ON;
