@@ -165,88 +165,60 @@ public class dttest extends OpMode {
     @Override
     public void loop() {
 
-        // TODO: tune these
-        double distanceToTarget = Math.sqrt(
-                Math.pow(follower.getPose().getX() - 137, 2) +
-                        Math.pow(follower.getPose().getY() - 142, 2)
-        );
-        double goalHeightDifference = 54;
+        double max;
 
-        double launchAngle = Math.acos(goalHeightDifference/distanceToTarget);
+        // POV Mode uses left joystick to go forward & strafe, and right joystick to rotate.
+        double axial   = -gamepad1.left_stick_y;  // Note: pushing stick forward gives negative value
+        double lateral =  gamepad1.left_stick_x;
+        double yaw     =  gamepad1.right_stick_x;
 
-        telemetry.addData("Launch Angle", launchAngle);
+        // Combine the joystick requests for each axis-motion to determine each wheel's power.
+        // Set up a variable for each drive wheel to save the power level for telemetry.
+        double frontLeftPower  = axial + lateral + yaw;
+        double frontRightPower = axial - lateral - yaw;
+        double backLeftPower   = axial - lateral + yaw;
+        double backRightPower  = axial + lateral - yaw;
 
-        pitch.setPosition(launchAngle/300);
+        // Normalize the values so no wheel power exceeds 100%
+        // This ensures that the robot maintains the desired motion.
+        max = Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower));
+        max = Math.max(max, Math.abs(backLeftPower));
+        max = Math.max(max, Math.abs(backRightPower));
 
-
-        follower.update();
-        telemetryM.update();
-        if (!slowMode) follower.setTeleOpDrive(
-                -gamepad1.left_stick_y,
-                -gamepad1.left_stick_x,
-                -gamepad1.right_stick_x,
-                false // Robot Centric
-        );
-            //This is how it looks with slowMode on
-        else follower.setTeleOpDrive(
-                -gamepad1.left_stick_y * slowModeMultiplier,
-                -gamepad1.left_stick_x * slowModeMultiplier,
-                -gamepad1.right_stick_x * slowModeMultiplier,
-                false // Robot Centric
-        );
-
-        if (gamepad1.xWasPressed()) {
-            slowMode = true;
-            slowModeMultiplier += 0.5;
-        } else if (gamepad1.xWasReleased()) {
-            slowMode = false;
+        if (max > 1.0) {
+            frontLeftPower  /= max;
+            frontRightPower /= max;
+            backLeftPower   /= max;
+            backRightPower  /= max;
         }
 
-        telemetryM.debug("position", follower.getPose());
-        telemetryM.debug("velocity", follower.getVelocity());
+        // This is test code:
+        //
+        // Uncomment the following code to test your motor directions.
+        // Each button should make the corresponding motor run FORWARD.
+        //   1) First get all the motors to take to correct positions on the robot
+        //      by adjusting your Robot Configuration if necessary.
+        //   2) Then make sure they run in the correct direction by modifying the
+        //      the setDirection() calls above.
+        // Once the correct motors move in the correct direction re-comment this code.
 
-        /*
-         * Here we give the user control of the speed of the launcher motor without automatically
-         * queuing a shot.
-         */
-        if (gamepad1.y) {
-            launcher.setPower(1);
-        } else if (gamepad1.b) { // stop flywheel
-            launcher.setPower(0);
-        }
+            /*
+            frontLeftPower  = gamepad1.x ? 1.0 : 0.0;  // X gamepad
+            backLeftPower   = gamepad1.a ? 1.0 : 0.0;  // A gamepad
+            frontRightPower = gamepad1.y ? 1.0 : 0.0;  // Y gamepad
+            backRightPower  = gamepad1.b ? 1.0 : 0.0;  // B gamepad
+            */
 
-        if (launcher.getPower() == 1) {
-            gamepad1.rumble(1000);
-        }
+        // Send calculated power to wheels
+        leftFrontDrive.setPower(frontLeftPower);
+        rightFrontDrive.setPower(frontRightPower);
+        leftBackDrive.setPower(backLeftPower);
+        rightBackDrive.setPower(backRightPower);
 
-        if (gamepad1.aWasPressed()) {
-            switch (intakeState) {
-                case ON:
-                    intakeState = IntakeState.OFF;
-                    intake.setPower(0);
-                    break;
-                case OFF:
-                    intakeState = IntakeState.ON;
-                    intake.setPower(1);
-                    break;
-            }
-
-            if (gamepad1.dpadUpWasPressed()) {
-                agigtator.setPower(1);
-            } else {
-                agigtator.setPower(0);
-            }
-
-        }
-
-        score = follower.pathBuilder()
-                .addPath(new BezierLine(follower.getPose(), follower.getPose()))
-                .setHeadingInterpolation(HeadingInterpolator.facingPoint(scoreFace))
-                .build();
-
-        if (gamepad1.left_trigger != 0) {
-            follower.followPath(score);
-        }
+        // Show the elapsed game time and wheel power.
+        telemetry.addData("Front left/Right", "%4.2f, %4.2f", frontLeftPower, frontRightPower);
+        telemetry.addData("Back  left/Right", "%4.2f, %4.2f", backLeftPower, backRightPower);
+        telemetry.update();
     }
 
 }
