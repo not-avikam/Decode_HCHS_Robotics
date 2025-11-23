@@ -2,6 +2,8 @@ package org.firstinspires.ftc.teamcode; // make sure this aligns with class loca
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
+import android.graphics.Color;
+
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
@@ -16,13 +18,29 @@ import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
+import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.SwitchableLight;
 
+import org.firstinspires.ftc.robotcore.external.JavaUtil;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.vision.opencv.ColorBlobLocatorProcessor;
 import org.firstinspires.ftc.vision.opencv.ColorRange;
 import org.firstinspires.ftc.vision.opencv.ImageRegion;
+
+import android.app.Activity;
+import android.graphics.Color;
+import android.view.View;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
+import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
+import com.qualcomm.robotcore.hardware.NormalizedRGBA;
+import com.qualcomm.robotcore.hardware.SwitchableLight;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 @Autonomous(name="Auto", group="StarterBot")
 
@@ -34,10 +52,10 @@ public class Auton_Red extends OpMode {
     private DcMotor rightBackDrive = null;
     private DcMotorEx launcher = null;
     private DcMotorEx intake = null;
-    private CRServo agigtator = null;
+    private Servo agigtator = null;
     private Servo pitch = null;
-
-
+    private Servo indexer = null;
+    NormalizedColorSensor colorSensor;
     RobotHardware robot = new RobotHardware(this);
 
     private final Pose startPose = new Pose(87, 88, Math.toRadians(45)); // Start Pose of our robot.
@@ -61,8 +79,15 @@ public class Auton_Red extends OpMode {
     private Timer pathTimer, actionTimer, opmodeTimer, shot;
 
     private int pathState;
+    private int shootBall;
+    private int intakeBall;
 
     private double launchAngle;
+
+    private enum colors{
+        PURPLE,
+        GREEN;
+    }
 
     private Path scorePreload;
     private PathChain grabPickup1, scorePickup1, grabPickup2, scorePickup2, grabPickup3, scorePickup3, goToHuman;
@@ -125,15 +150,11 @@ public class Auton_Red extends OpMode {
             case 0:
                 robot.init();
                 shoot();
-                if(pathTimer.getElapsedTimeSeconds() > 5){
+                if (shootBall == 6) {
                     setPathState(1);
                 }
                 break;
             case 1:
-                intake.setPower(1);
-                agigtator.setPower(.4);
-
-
             /* You could check for
             - Follower State: "if(!follower.isBusy()) {}"
             - Time: "if(pathTimer.getElapsedTimeSeconds() > 1) {}"
@@ -150,11 +171,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 2:
-                if (follower.isBusy()) {
-                    intake.setPower(1);
-                    agigtator.setPower(.2);
-                }
-
+                intake();
                 /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the pickup1Pose's position */
                 if(!follower.isBusy()) {
                     /* Grab Sample */
@@ -165,28 +182,19 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 3:
-                if (follower.isBusy()) {
-                    intake.setPower(.5);
-                    agigtator.setPower(.2);
-                }
                 /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the scorePose's position */
                 if(!follower.isBusy()) {
                     /* Score Sample */
                     shoot();
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
-                    if (pathTimer.getElapsedTimeSeconds() > 5){
-                        follower.followPath(grabPickup2,true);
+                    if (shootBall == 6){
+                        follower.followPath(grabPickup2,false);
                         setPathState(4);
                     }
                 }
                 break;
             case 4:
-
-                if(follower.isBusy()) {
-                    intake.setPower(1);
-                    agigtator.setPower(.2);
-                }
-                //TODO
+                intake();
 
                 /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the pickup2Pose's position */
                 if(!follower.isBusy()) {
@@ -203,18 +211,15 @@ public class Auton_Red extends OpMode {
                     /* Score Sample */
                     shoot();
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
-                    if (pathTimer.getElapsedTimeSeconds() > 5) {
-                        follower.followPath(grabPickup3,true);
+                    if (shootBall == 6) {
+                        follower.followPath(grabPickup3,false);
                         setPathState(6);
                     }
                 }
                 break;
             case 6:
+                intake();
 
-                if(follower.isBusy()) {
-                    intake.setPower(1);
-                    agigtator.setPower(.2);
-                }
                 /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the pickup3Pose's position */
                 if(!follower.isBusy()) {
                     /* Grab Sample */
@@ -227,7 +232,7 @@ public class Auton_Red extends OpMode {
                 /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the scorePose's position */
                 if(!follower.isBusy()) {
                     shoot();
-                    if ((pathTimer.getElapsedTimeSeconds()) > 5) {
+                    if (shootBall == 6) {
                         follower.followPath(goToHuman, true);
                         /* Set the state to a Case we won't use or define, so it just stops running an new paths */
                         setPathState(-1);
@@ -237,43 +242,94 @@ public class Auton_Red extends OpMode {
         }
     }
 
+
+    public void intake() {
+
+        setIntakeBall(0);
+
+        double hue;
+
+        NormalizedRGBA colors = colorSensor.getNormalizedColors();
+        hue = JavaUtil.colorToHue(colors.toColor());
+
+        switch (intakeBall) {
+
+            case 0:
+                if (hue < 150){
+                    indexer.setPosition(.333);
+                    setIntakeBall(1);
+                } else if (hue < 350){
+                    indexer.setPosition(.333);
+                    setIntakeBall(1);
+                }
+                break;
+            case 1:
+                if (hue < 150){
+                    indexer.setPosition(.666);
+                    setIntakeBall(2);
+                } else if (hue < 350){
+                    indexer.setPosition(.666);
+                    setIntakeBall(2);
+                }
+                break;
+            case 2:
+                setIntakeBall(3);
+                break;
+        }
+
+    }
+
+    public void setIntakeBall(int iBall) {
+        intakeBall = iBall;
+    }
+
     public void shoot() {
-        // TODO: tune these
-        double distanceToTarget = Math.sqrt(
-                Math.pow(follower.getPose().getX() - 132, 2) +
-                        Math.pow(follower.getPose().getY() - 134, 2)
-        );
-        double launchAngle = Math.toRadians(45.0);
-        double goalHeightDifference = 1.111; // Example: 10 inches = 0.254 meters
-        double g = 9.81; // gravity m/s^2
 
-        double cosTheta = Math.cos(launchAngle);
-        double tanTheta = Math.tan(launchAngle);
+        setShootBall(0);
 
-// Denominator = 2*cos^2(theta)*(x*tan(theta)-y)
-        double denominator = 2 * cosTheta * cosTheta * (distanceToTarget * tanTheta - goalHeightDifference);
-
-        double v0Squared = (g * Math.pow(distanceToTarget, 2)) / denominator;
-
-        double launcherTarget = Math.sqrt(v0Squared); // final launch speed m/s
-
-        shot = new Timer();
-
-        if ((launcher.getVelocity()) == (launcherTarget*1425.1)) {
-            agigtator.setPower(1);
+        switch (shootBall) {
+            case 0:
+                if ((launcher.getVelocity()) >= (8000000)) {
+                    agigtator.setPosition(1);
+                    setShootBall(1);
+                }
+                break;
+            case 1:
+                agigtator.setPosition(0);
+                indexer.setPosition(.333);
+                setShootBall(2);
+                break;
+            case 2:
+                if ((launcher.getVelocity()) >= (8000000)) {
+                    agigtator.setPosition(1);
+                    setShootBall(3);
+                }
+                break;
+            case 3:
+                agigtator.setPosition(0);
+                indexer.setPosition(.666);
+                setShootBall(4);
+                break;
+            case 4:
+                if ((launcher.getVelocity()) >= (8000000)) {
+                    agigtator.setPosition(1);
+                    setShootBall(5);
+                }
+                break;
+            case 5:
+                agigtator.setPosition(0);
+                indexer.setPosition(0);
+                setShootBall(6);
+                break;
+            case 6:
+                setShootBall(7);
+                break;
         }
-        launcher.setVelocity(launcherTarget*1425.1);
 
-        if (launcher.getVelocity() == launcherTarget) {
-            shot.resetTimer();
-            agigtator.setPower(1);
-        }
+    }
 
-        if ((shot.getElapsedTimeSeconds()) > 2) {
-            launcher.setVelocity(0);
-            agigtator.setPower(0);
-        }
-
+    public void setShootBall(int sBall) {
+        shootBall = sBall;
     }
 
     /** These change the states of the paths and actions. It will also reset the timers of the individual switches **/
@@ -284,8 +340,7 @@ public class Auton_Red extends OpMode {
 
     /** This is the main loop of the OpMode, it will run repeatedly after clicking "Play". **/
     @Override
-    public void
-    loop() {
+    public void loop() {
 
         double distanceToTarget = Math.sqrt(
                 Math.pow(follower.getPose().getX() - 137, 2) +
@@ -295,9 +350,16 @@ public class Auton_Red extends OpMode {
 
         double launchAngle = Math.acos(goalHeightDifference/distanceToTarget);
 
+        if (colorSensor instanceof SwitchableLight) {
+            ((SwitchableLight)colorSensor).enableLight(true);
+        }
+
         telemetry.addData("Launch Angle", launchAngle);
 
         pitch.setPosition(launchAngle/300);
+
+        launcher.setPower(1);
+        intake.setPower(1);
 
         // These loop the movements of the robot, these must be called continuously in order to work
         follower.update();
@@ -330,8 +392,12 @@ public class Auton_Red extends OpMode {
         rightBackDrive = hardwareMap.get(DcMotor.class, "right_back_drive");
         launcher = hardwareMap.get(DcMotorEx.class, "launcher");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
-        agigtator = hardwareMap.get(CRServo.class, "agigtator");
+        agigtator = hardwareMap.get(Servo.class, "agigtator");
         pitch = hardwareMap.get(Servo.class, "pitch");
+        indexer = hardwareMap.get(Servo.class, "indexer");
+        colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_color");
+
+        colorSensor.setGain(2);
 
 
 
@@ -367,6 +433,8 @@ public class Auton_Red extends OpMode {
         follower = Constants.createFollower(hardwareMap);
         buildPaths();
         follower.setStartingPose(startPose);
+
+        indexer.setPosition(0);
 
     }
 
