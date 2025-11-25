@@ -34,18 +34,12 @@ import com.pedropathing.paths.HeadingInterpolator;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.util.ElapsedTime;
-
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-import org.firstinspires.ftc.vision.opencv.ColorBlobLocatorProcessor;
-import org.firstinspires.ftc.vision.opencv.ColorRange;
-import org.firstinspires.ftc.vision.opencv.ImageRegion;
 
 /*
  * This file includes a teleop (driver-controlled) file for the goBILDA® Robot in 3 Days for the
@@ -53,72 +47,44 @@ import org.firstinspires.ftc.vision.opencv.ImageRegion;
  */
 
 
-@TeleOp(name = "Decode LM1", group = "StarterBot")
+@TeleOp(name = "Decode LM2", group = "HSI LM2")
 //@Disabled
-public class RED_LM2_HSI extends OpMode {
-    final double STOP_SPEED = 0.0; //We send this power to the servos when we want them to stop.
+public class LM2_HSI extends OpMode {
     private Servo pitch = null;
+    private Servo yaw = null;
 
-    // Declare OpMode members.
-    private DcMotor leftFrontDrive = null;
-    private DcMotor rightFrontDrive = null;
-    private DcMotor leftBackDrive = null;
-    private DcMotor rightBackDrive = null;
     private DcMotorEx launcher = null;
-    private DcMotorEx intake = null;
-    private CRServo agigtator = null;
-
-    private enum IntakeState {
-        ON,
-        OFF;
-    }
-
-    private PathChain score;
-    private final Pose scoreFace = new Pose(137,142);
-    private IntakeState intakeState = IntakeState.OFF;
+    private Servo agigtator = null;
+    private Servo indexer = null;
+    private Pose scoreFace = new Pose(137,142);
     private Follower follower;
     public Pose startingPose; //See ExampleAuto to understand how to use this
-    private final Pose goalPose = new Pose(132, 134);
     private TelemetryManager telemetryM;
     private boolean slowMode = false;
     private double slowModeMultiplier = 0.5;
-    private enum agigtateState {
-        ON,
-        OFF;
-    }
-
-    private agigtateState agigtatorState;
-    ElapsedTime agigtateTimer = new ElapsedTime();
 
     /*
      * Code to run ONCE when the driver hits INIT
      */
     @Override
     public void init() {
-        ColorBlobLocatorProcessor colorLocator = new ColorBlobLocatorProcessor.Builder()
-                .setTargetColorRange(ColorRange.ARTIFACT_GREEN)
-                .setTargetColorRange(ColorRange.ARTIFACT_PURPLE)// use a predefined color match
-                .setContourMode(ColorBlobLocatorProcessor.ContourMode.EXTERNAL_ONLY)    // exclude blobs inside blobs
-                .setRoi(ImageRegion.asUnityCenterCoordinates(-0.5, 0.5, 0.5, -0.5))  // search central 1/4 of camera view
-                .setDrawContours(true)                        // Show contours on the Stream Preview
-                .setBlurSize(5)                               // Smooth the transitions between different colors in image
-                .build();
 
-        leftFrontDrive = hardwareMap.get(DcMotor.class, "left_front_drive");
-        rightFrontDrive = hardwareMap.get(DcMotor.class, "right_front_drive");
-        leftBackDrive = hardwareMap.get(DcMotor.class, "left_back_drive");
-        rightBackDrive = hardwareMap.get(DcMotor.class, "right_back_drive");
+        // Declare OpMode members.
+        DcMotor leftFrontDrive = hardwareMap.get(DcMotor.class, "left_front_drive");
+        DcMotor rightFrontDrive = hardwareMap.get(DcMotor.class, "right_front_drive");
+        DcMotor leftBackDrive = hardwareMap.get(DcMotor.class, "left_back_drive");
+        DcMotor rightBackDrive = hardwareMap.get(DcMotor.class, "right_back_drive");
         launcher = hardwareMap.get(DcMotorEx.class, "launcher");
-        intake = hardwareMap.get(DcMotorEx.class, "intake");
-        agigtator = hardwareMap.get(CRServo.class, "agigtator");
+        DcMotorEx intake = hardwareMap.get(DcMotorEx.class, "intake");
+        agigtator = hardwareMap.get(Servo.class, "agigtator");
         pitch = hardwareMap.get(Servo.class, "pitch");
+        indexer = hardwareMap.get(Servo.class, "indexer");
+        yaw = hardwareMap.get(Servo.class, "yaw");
 
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startingPose == null ? new Pose() : startingPose);
         follower.update();
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
-
-        agigtatorState = agigtateState.ON;
 
         launcher.setDirection(DcMotorSimple.Direction.REVERSE);
 
@@ -138,9 +104,9 @@ public class RED_LM2_HSI extends OpMode {
         launcher.setZeroPowerBehavior(BRAKE);
         intake.setZeroPowerBehavior(BRAKE);
 
-        agigtator.setPower(STOP_SPEED);
+        agigtator.setPosition(0);
 
-        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(300, 0, 0, 10));
+        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(.05, .5, .05, .6));
 
         telemetry.addData("Status", "Initialized");
     }
@@ -150,6 +116,13 @@ public class RED_LM2_HSI extends OpMode {
      */
     @Override
     public void init_loop() {
+        telemetry.addLine("Press right on the dpad for red alliance");
+        telemetry.addLine("Press left on the dpad for blue alliance");
+        if (gamepad1.dpad_right) {
+            scoreFace = new Pose(137, 142);
+        } else if (gamepad1.dpad_left) {
+            scoreFace = new Pose(7, 142);
+        }
     }
 
     /*
@@ -167,6 +140,15 @@ public class RED_LM2_HSI extends OpMode {
 
         follower.update();
         telemetryM.update();
+
+        if (gamepad1.aWasPressed()) {
+            slowMode = true;
+            slowModeMultiplier = 0.5;
+        } else if (gamepad1.aWasReleased()) {
+            slowMode = false;
+            slowModeMultiplier = 1;
+        }
+
         if (!slowMode) follower.setTeleOpDrive(
                 -gamepad1.left_stick_y,
                 -gamepad1.left_stick_x,
@@ -181,58 +163,35 @@ public class RED_LM2_HSI extends OpMode {
                 false // Robot Centric
         );
 
-        if (gamepad1.xWasPressed()) {
-            slowMode = true;
-            slowModeMultiplier += 0.5;
-        } else if (gamepad1.xWasReleased()) {
-            slowMode = false;
-        }
-
         telemetryM.debug("position", follower.getPose());
         telemetryM.debug("velocity", follower.getVelocity());
 
-        /*
-         * Here we give the user control of the speed of the launcher motor without automatically
-         * queuing a shot.
-         */
-        if (gamepad1.y) {
-            launcher.setPower(1);
-        } else if (gamepad1.b) { // stop flywheel
-            launcher.setPower(0);
-        }
-
-        if (launcher.getPower() == 1) {
+        if (launcher.getVelocity() == 2300) {
             gamepad1.rumble(1000);
-        }
-
-        if (gamepad1.aWasPressed()) {
-            switch (intakeState) {
-                case ON:
-                    intakeState = IntakeState.OFF;
-                    intake.setPower(0);
-                    break;
-                case OFF:
-                    intakeState = IntakeState.ON;
-                    intake.setPower(1);
-                    break;
-            }
-
-            if (gamepad1.dpadUpWasPressed()) {
-                agigtator.setPower(1);
-            } else {
-                agigtator.setPower(0);
-            }
-
         }
 
         if (gamepad1.left_trigger != 0) {
             aim();
+        } else {
+            launcher.setPower(0);
+        }
+
+        if (gamepad1.right_trigger !=0) {
+            agigtator.setPosition(.3);
+        } else {
+            agigtator.setPosition(0);
+        }
+
+        if (gamepad1.dpadRightWasPressed() && agigtator.getPosition() == 0) {
+            indexer.setPosition(indexer.getPosition()+.333);
+        } else if (gamepad1.dpadLeftWasPressed() && agigtator.getPosition() == 0) {
+            indexer.setPosition(indexer.getPosition()-.333);
         }
     }
 
     public void aim() {
 
-        score = follower.pathBuilder()
+        PathChain score = follower.pathBuilder()
                 .addPath(new BezierLine(follower.getPose(), follower.getPose()))
                 .setHeadingInterpolation(HeadingInterpolator.facingPoint(scoreFace))
                 .build();
@@ -241,12 +200,32 @@ public class RED_LM2_HSI extends OpMode {
                 Math.pow(follower.getPose().getX() - 137, 2) +
                         Math.pow(follower.getPose().getY() - 142, 2)
         );
-        double goalHeightDifference = 54;
 
-        double launchAngle = Math.acos(goalHeightDifference/distanceToTarget);
+        double launchAngle = Math.toDegrees(Math.atan2(54, distanceToTarget));
+
+        // 1. Define goal and get robot pose
+        // 1. Define goal and get robot pose
+        double goalX = 137;
+        double goalY = 142;
+        // 2. Calculate the difference (vector) from robot to goal
+        double deltaX = goalX - follower.getPose().getX();
+        double deltaY = goalY - follower.getPose().getY();
+
+        // 3. Calculate the absolute field-centric angle to the goal
+        double absoluteAngleToGoal = Math.toDegrees(Math.atan2(deltaY, deltaX));
+
+        // 4. Calculate the relative angle for the turret by subtracting the robot's heading
+        double yawAngle = absoluteAngleToGoal - Math.toDegrees(follower.getHeading());
+
+        follower.followPath(score);
+
+        yaw.setPosition(yawAngle/1800);
+
+        telemetry.addData("Launch Angle", launchAngle);
 
         pitch.setPosition(launchAngle/300);
-        follower.followPath(score);
+
+        launcher.setPower(1);
         follower.update();
         telemetry.addData("Launch Angle", launchAngle);
     }
