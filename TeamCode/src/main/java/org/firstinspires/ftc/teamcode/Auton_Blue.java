@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode; // make sure this aligns with class loca
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
-
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
@@ -28,7 +27,7 @@ import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @Autonomous(name="Auto", group="HSI LM2")
 
-public class Auton_Red extends OpMode {
+public class Auton_Blue extends OpMode {
 
     private DcMotorEx launcher = null;
     private DcMotorEx intake = null;
@@ -37,18 +36,18 @@ public class Auton_Red extends OpMode {
     private Servo indexer = null;
     NormalizedColorSensor colorSensor;
 
-    private final Pose startPose = new Pose(84, 84, Math.toRadians(45)); // Start Pose of our robot.
-    private final Pose scoreFace = new Pose(137,142);
-    private final Pose pickup1pose = new Pose(131, 83, Math.toRadians(0));
-    private final Pose pickup1posectrl = new Pose(109,82);
-    private final Pose scorePose2 = new Pose(83, 82, Math.toRadians(45));
-    private final Pose scorePose3 = new Pose(75, 75, Math.toRadians(45));
-    private final Pose pickup2Pose = new Pose(132, 61, Math.toRadians(0));
-    private final Pose pickup2Posectrl = new Pose(85, 50);
-    private final Pose pickup3Pose = new Pose(130, 36, Math.toRadians(0)); // Lowest (Third Set) of Artifacts from the Spike Mark.
-    private final Pose pickup3Posectrl = new Pose(66, 30);
-    private final Pose scorePose4 = new Pose(80, 16, Math.toRadians(67));
-    private final Pose human = new Pose (10,10, Math.toRadians(180));
+    private final Pose startPose = new Pose(60, 84, Math.toRadians(140)); // Start Pose of our robot.
+    private final Pose scoreFace = new Pose(7,142);
+    private final Pose pickup1pose = new Pose(16, 84, Math.toRadians(180));
+    private final Pose pickup1posectrl = new Pose(51,83.5);
+    private final Pose scorePose2 = new Pose(67, 76, Math.toRadians(140));
+    private final Pose scorePose3 = new Pose(70, 70, Math.toRadians(140));
+    private final Pose pickup2Pose = new Pose(12, 60, Math.toRadians(180));
+    private final Pose pickup2Posectrl = new Pose(59, 60);
+    private final Pose pickup3Pose = new Pose(14, 36, Math.toRadians(180)); // Lowest (Third Set) of Artifacts from the Spike Mark.
+    private final Pose pickup3Posectrl = new Pose(66, 32);
+    private final Pose scorePose4 = new Pose(67, 20, Math.toRadians(120));
+    private final Pose human = new Pose (127,10, Math.toRadians(0));
 
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer, shootTimer;
