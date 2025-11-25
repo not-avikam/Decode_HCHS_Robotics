@@ -4,6 +4,17 @@ import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.gam
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
 
 import com.bylazar.configurables.annotations.Configurable;
+import com.bylazar.graph.PanelsGraph;
+import com.bylazar.telemetry.PanelsTelemetry;
+import com.bylazar.telemetry.TelemetryManager;
+import com.bylazar.configurables.PanelsConfigurables;
+import com.bylazar.configurables.annotations.Configurable;
+import com.bylazar.configurables.annotations.IgnoreConfigurable;
+import com.bylazar.field.FieldManager;
+import com.bylazar.field.PanelsField;
+import com.bylazar.field.Style;
+import com.bylazar.telemetry.PanelsTelemetry;
+import com.bylazar.telemetry.TelemetryManager;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -13,16 +24,20 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 
 
-@TeleOp(name = "test", group = "Testing")
 @Configurable
+@TeleOp(name = "test", group = "Testing")
 public class PID_Tuners extends OpMode {
-    public static int kp = 1;
-    public static int ki = 1;
-    public static int kd = 0;
-    public static int kf = 0;
+    public static double kp = 1;
+    public static double ki = 1;
+    public static double kd = 0;
+    public static double kf = 0;
+    public static double velocity = 0;
     private DcMotorEx motor = null;
     private Servo servo = null;
     private CRServo crservo = null;
+    private TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
+
+
     @Override
     public void init() {
 
@@ -35,9 +50,7 @@ public class PID_Tuners extends OpMode {
     @Override
     public void loop() {
         motor.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(kp, ki, kd, kf));
-        motor.setPower(gamepad1.right_trigger);
-        motor.setPower(-(gamepad1.left_trigger));
-
+        motor.setVelocity(velocity);
         crservo.setPower(gamepad1.left_stick_x);
 
         if (gamepad1.dpadUpWasPressed()) {
@@ -46,6 +59,9 @@ public class PID_Tuners extends OpMode {
             servo.setPosition(1);
         }
 
+        panelsTelemetry.addData("motor velocity", motor.getVelocity());
+
+        panelsTelemetry.update(telemetry);
 
     }
 }
