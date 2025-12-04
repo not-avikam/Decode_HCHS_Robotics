@@ -29,9 +29,12 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -63,20 +66,32 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
+@Configurable
 @TeleOp(name="servo test", group="testing")
 public class servotest extends LinearOpMode {
 
     // Declare OpMode members for each of the 4 motors.
     private ElapsedTime runtime = new ElapsedTime();
     private Servo agigtator = null;
+    private Servo yaw1 = null;
+    private Servo yaw2 = null;
+    private Servo indexer = null;
+    public static double indexerposition = 0;
+    public static double yawposition = 0;
+    public static double agigtatorposition = 0;
 
     @Override
     public void runOpMode() {
 
         // Initialize the hardware variables. Note that the strings used here must correspond
         // to the names assigned during the robot configuration step on the DS or RC devices.
-        agigtator = hardwareMap.get(Servo.class, "indexer");
+        yaw1 = hardwareMap.get(Servo.class, "yaw1");
+        yaw2 = hardwareMap.get(Servo.class, "yaw2");
+        agigtator = hardwareMap.get(Servo.class, "agigtator");
+        indexer = hardwareMap.get(Servo.class, "indexer");
+
         agigtator.setDirection(Servo.Direction.REVERSE);
+        //yaw2.setDirection(Servo.Direction.REVERSE);
 
         // ########################################################################################
         // !!!            IMPORTANT Drive Information. Test your motor directions.            !!!!!
@@ -97,13 +112,9 @@ public class servotest extends LinearOpMode {
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-            if (gamepad1.dpadUpWasPressed()) {
-                agigtator.setPosition(agigtator.getPosition() + .333);
-            } else if (gamepad1.dpadDownWasPressed()) {
-                agigtator.setPosition(agigtator.getPosition() - .333);
-            }
-            // Show the elapsed game time and wheel power.
-            telemetry.addData("Status", "Run Time: " + runtime.toString());
-            telemetry.update();
+            yaw1.setPosition(yawposition);
+            yaw2.setPosition(yawposition);
+            agigtator.setPosition(agigtatorposition);
+            indexer.setPosition(indexerposition);
         }
     }}
