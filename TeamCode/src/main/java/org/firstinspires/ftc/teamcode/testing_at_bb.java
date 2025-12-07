@@ -1,43 +1,38 @@
 package org.firstinspires.ftc.teamcode;
 
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.gamepad1;
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
-
 import com.bylazar.configurables.annotations.Configurable;
-import com.bylazar.graph.PanelsGraph;
-import com.bylazar.telemetry.PanelsTelemetry;
-import com.bylazar.telemetry.TelemetryManager;
-import com.bylazar.configurables.PanelsConfigurables;
-import com.bylazar.configurables.annotations.Configurable;
-import com.bylazar.configurables.annotations.IgnoreConfigurable;
-import com.bylazar.field.FieldManager;
-import com.bylazar.field.PanelsField;
-import com.bylazar.field.Style;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
+import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 
 
 @Configurable
-@TeleOp(name = "test", group = "Testing")
-public class PID_Tuners extends OpMode {
+@TeleOp(name = "bb test", group = "Testing")
+public class testing_at_bb extends OpMode {
     public static double kp = 1;
     public static double ki = 1;
     public static double kd = 0;
     public static double kf = 0;
     public static double velocity = 0;
     public static double velocity_servo = 0;
+    public static double velocity_intake = 0;
+    public static double agigtator_position = 0;
+    public static double indexer_position = 0;
+    private ServoEx indexer = null;
+
     private DcMotorEx motor = null;
     //private Servo servo = null;
     private CRServoEx crservo1 = null;
     private CRServoEx crservo2 = null;
+    private DcMotor intake = null;
+    private Servo agigtator = null;
     private TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
 
@@ -48,6 +43,9 @@ public class PID_Tuners extends OpMode {
         //servo = hardwareMap.get(Servo.class, "servo");
         crservo1 = new CRServoEx(hardwareMap, "yaw1");
         crservo2 = new CRServoEx(hardwareMap, "yaw2");
+        intake = hardwareMap.get(DcMotorEx.class, "intake");
+        agigtator = hardwareMap.get(Servo.class, "agigtator");
+        indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
 
         crservo1.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
         crservo2.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
@@ -60,6 +58,9 @@ public class PID_Tuners extends OpMode {
         motor.setVelocity(velocity);
         crservo1.set(velocity_servo);
         crservo2.set(-velocity_servo);
+        intake.setPower(velocity_intake);
+        agigtator.setPosition(agigtator_position);
+        indexer.set(indexer_position);
 
 
         /*
