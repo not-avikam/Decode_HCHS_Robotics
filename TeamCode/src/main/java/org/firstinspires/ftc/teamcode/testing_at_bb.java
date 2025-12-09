@@ -16,8 +16,8 @@ import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 @Configurable
 @TeleOp(name = "bb test", group = "Testing")
 public class testing_at_bb extends OpMode {
-    public static double kp = 1;
-    public static double ki = 1;
+    public static double kp = 0;
+    public static double ki = 0;
     public static double kd = 0;
     public static double kf = 0;
     public static double velocity = 0;
@@ -25,6 +25,7 @@ public class testing_at_bb extends OpMode {
     public static double velocity_intake = 0;
     public static double agigtator_position = 0;
     public static double indexer_position = 0;
+    public static double pitch_position = 0;
     private ServoEx indexer = null;
 
     private DcMotorEx motor = null;
@@ -33,6 +34,7 @@ public class testing_at_bb extends OpMode {
     private CRServoEx crservo2 = null;
     private DcMotor intake = null;
     private Servo agigtator = null;
+    private ServoEx pitch = null;
     private TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
 
@@ -46,6 +48,9 @@ public class testing_at_bb extends OpMode {
         intake = hardwareMap.get(DcMotorEx.class, "intake");
         agigtator = hardwareMap.get(Servo.class, "agigtator");
         indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
+        pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
+        //keep it between 400 and 0 for pitch
+        //400 corresponds to 145 degrees, and zero corresponds to 105
 
         crservo1.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
         crservo2.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
@@ -61,6 +66,7 @@ public class testing_at_bb extends OpMode {
         intake.setPower(velocity_intake);
         agigtator.setPosition(agigtator_position);
         indexer.set(indexer_position);
+        pitch.set(pitch_position);
 
 
         /*
@@ -73,7 +79,6 @@ public class testing_at_bb extends OpMode {
          */
 
         panelsTelemetry.addData("motor velocity", motor.getVelocity());
-
         panelsTelemetry.update(telemetry);
 
     }

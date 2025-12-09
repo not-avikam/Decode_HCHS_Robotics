@@ -682,7 +682,7 @@ public class Auton_Red extends OpMode {
         agigtator.set(0);
         indexer.set(90);
         //sets pidf values for the launcher
-        launcher.setVeloCoefficients(.05, .5, .05);
+        launcher.setVeloCoefficients(.03, .8, .05);
 
 
         pathTimer = new Timer();
