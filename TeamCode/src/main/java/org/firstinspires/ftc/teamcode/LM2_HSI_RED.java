@@ -47,7 +47,7 @@ public class LM2_HSI_RED extends OpMode {
     private ServoEx pitch = null;
     private CRServoEx yaw = null;
     private ServoEx agigtator = null;
-    private CRServoEx indexer = null;
+    private ServoEx indexer = null;
 
     private DcMotorEx intake = null;
     private MotorEx launcher = null;
@@ -87,7 +87,7 @@ public class LM2_HSI_RED extends OpMode {
         colorSensorIntake = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
         colorSensorShoot = hardwareMap.get(NormalizedColorSensor.class, "sensor_shoot");
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
-        indexer = new CRServoEx(hardwareMap, "indexer");
+        indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
 
         int relativeLayoutId = hardwareMap.appContext.getResources().getIdentifier("RelativeLayout", "id", hardwareMap.appContext.getPackageName());
         relativeLayout = ((Activity) hardwareMap.appContext).findViewById(relativeLayoutId);
@@ -295,6 +295,7 @@ public class LM2_HSI_RED extends OpMode {
                         relativeLayout.setBackgroundColor(Color.rgb(54, 201, 76));
                     }
                     indexShoot = IndexShoot.SHOOT_1;
+                    break;
             }
         } else if (gamepad1.dpadDownWasPressed()) {
             switch (indexShoot) {
