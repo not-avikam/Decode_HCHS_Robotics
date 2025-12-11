@@ -8,6 +8,7 @@ import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.HeadingInterpolator;
+import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
@@ -18,7 +19,6 @@ import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.SwitchableLight;
-import com.seattlesolvers.solverslib.hardware.AbsoluteAnalogEncoder;
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
 import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
@@ -49,11 +49,11 @@ public class Auton_Red extends OpMode {
     private DcMotorEx intake = null;
     private ServoEx agigtator = null;
     private Servo pitch = null;
-    private CRServoEx yaw = null;
+    private CRServoEx yaw1, yaw2 = null;
     private ServoEx indexer = null;
     NormalizedColorSensor colorSensor;
-
-    private final Pose startPose = new Pose(84, 84, Math.toRadians(45)); // Start Pose of our robot.
+    private final Pose startPose = new Pose(117,128, Math.toRadians(45));
+    private final Pose scorePreload = new Pose(84, 84, Math.toRadians(45)); // Start Pose of our robot.
     private final Pose scoreFace = new Pose(137,142);
     private final Pose pickup1pose = new Pose(131, 83, Math.toRadians(0));
     private final Pose pickup1posectrl = new Pose(109,82);
@@ -65,6 +65,7 @@ public class Auton_Red extends OpMode {
     private final Pose pickup3Posectrl = new Pose(66, 30);
     private final Pose scorePose4 = new Pose(80, 16, Math.toRadians(67));
     private final Pose human = new Pose (10,10, Math.toRadians(180));
+    private double kP = .01;
 
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer, shootTimer;
@@ -72,13 +73,15 @@ public class Auton_Red extends OpMode {
     private int pathState;
     private int shootBall;
     private int intakeBall1, intakeBall2, intakeBall3;
-    private PathChain grabPickup1, scorePickup1, grabPickup2, scorePickup2, grabPickup3, scorePickup3, goToHuman;
+    private PathChain preload, grabPickup1, scorePickup1, grabPickup2, scorePickup2, grabPickup3, scorePickup3, goToHuman;
 
     public void buildPaths() {
 
         /* This is our scorePreload path. We are using a BezierLine, which is a straight line. */
-
-        //scorePreload = new Path(new BezierLine(startPose, scorePose));
+        preload = follower.pathBuilder()
+                .addPath(new BezierCurve(startPose,  scorePreload))
+                .setHeadingInterpolation(HeadingInterpolator.facingPoint(scorePreload))
+                .build();
         //scorePreload.setLinearHeadingInterpolation(startPose.getHeading(), scorePose.getHeading());
 
     /* Here is an example for Constant Interpolation
@@ -86,7 +89,7 @@ public class Auton_Red extends OpMode {
 
         /* This is our grabPickup1 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         grabPickup1 = follower.pathBuilder()
-                .addPath(new BezierCurve(startPose, pickup1posectrl,  pickup1pose))
+                .addPath(new BezierCurve(scorePreload, pickup1posectrl,  pickup1pose))
                 .setHeadingInterpolation(HeadingInterpolator.facingPoint(pickup1pose))
                 .build();
 
@@ -130,13 +133,15 @@ public class Auton_Red extends OpMode {
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0:
+                follower.followPath(preload, false);
+            case 1:
                 setShootBall(0);
                 shoot();
                 if (shootBall >= 6) {
                     setPathState(1);
                 }
                 break;
-            case 1:
+            case 2:
             /* You could check for
             - Follower State: "if(!follower.isBusy()) {}"
             - Time: "if(pathTimer.getElapsedTimeSeconds() > 1) {}"
@@ -152,7 +157,7 @@ public class Auton_Red extends OpMode {
                     setPathState(2);
                 }
                 break;
-            case 2:
+            case 3:
                 setIntakeBall1(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
@@ -170,7 +175,7 @@ public class Auton_Red extends OpMode {
                     setPathState(3);
                 }
                 break;
-            case 3:
+            case 4:
                 setShootBall(0);
                 /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the scorePose's position */
                 if(!follower.isBusy()) {
@@ -183,7 +188,7 @@ public class Auton_Red extends OpMode {
                     }
                 }
                 break;
-            case 4:
+            case 5:
                 setIntakeBall2(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
@@ -201,7 +206,7 @@ public class Auton_Red extends OpMode {
                     setPathState(5);
                 }
                 break;
-            case 5:
+            case 6:
                 setShootBall(0);
                 /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the scorePose's position */
                 if(!follower.isBusy()) {
@@ -214,7 +219,7 @@ public class Auton_Red extends OpMode {
                     }
                 }
                 break;
-            case 6:
+            case 7:
                 setIntakeBall3(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
@@ -231,7 +236,7 @@ public class Auton_Red extends OpMode {
                     setPathState(7);
                 }
                 break;
-            case 7:
+            case 8:
                 setShootBall(0);
                 /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the scorePose's position */
                 if(!follower.isBusy()) {
@@ -632,6 +637,15 @@ public class Auton_Red extends OpMode {
             ((SwitchableLight)colorSensor).enableLight(true);
         }
 
+        if (detection.id == 24) {
+            yaw1.set(detection.ftcPose.bearing * kP);
+            yaw2.set(detection.ftcPose.bearing * kP);
+        } else {
+            yaw1.set(1);
+            yaw2.set(1);
+        }
+
+
         telemetry.addData("Launch Angle", launchAngle);
 
         pitch.setPosition(launchAngle);
@@ -655,11 +669,13 @@ public class Auton_Red extends OpMode {
         agigtator = new ServoEx(hardwareMap, "agigtator");
         pitch = hardwareMap.get(Servo.class, "pitch");
         indexer = new ServoEx(hardwareMap, "indexer", 1, AngleUnit.DEGREES);
-        AbsoluteAnalogEncoder yawEncoder = new AbsoluteAnalogEncoder(hardwareMap, "yaw_encoder");
-        yaw = new CRServoEx(hardwareMap, "crServoEx", yawEncoder, CRServoEx.RunMode.OptimizedPositionalControl);
+        yaw1 = new CRServoEx(hardwareMap, "yaw1");
+        yaw2 = new CRServoEx(hardwareMap, "yaw2");
 
-        yaw.setPIDF(new PIDFCoefficients(0.001, 0.0, 0.1, 0.0001));
-        yaw.set(Math.toRadians(90)); // move to 90 degrees (in radians)
+        yaw2.setInverted(true);
+
+        yaw1.setPIDF(new PIDFCoefficients(kP, 0.0, 0.1, 0.0001));
+        yaw2.setPIDF(new PIDFCoefficients(kP, 0, 0.1, .0001));
 
         initAprilTag();
 
@@ -725,7 +741,7 @@ public class Auton_Red extends OpMode {
         setPathState(0);
         setShootBall(0);
         setIntakeBall1(0);
-        yaw.set(Math.toRadians(0));
+        yaw1.set(Math.toRadians(0));
     }
 
     /** We do not use this because everything should automatically disable **/
