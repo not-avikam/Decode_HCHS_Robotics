@@ -3,13 +3,15 @@ package org.firstinspires.ftc.teamcode;
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
 import android.app.Activity;
-import android.graphics.Color;
 import android.view.View;
 
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
+import com.pedropathing.ftc.FTCCoordinates;
+import com.pedropathing.geometry.PedroCoordinates;
 import com.pedropathing.geometry.Pose;
+import com.qualcomm.ftccommon.SoundPlayer;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -36,16 +38,13 @@ public class LM2_HSI_RED extends OpMode {
     private static final boolean USE_WEBCAM = true;  // true for webcam, false for phone camera
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
-    double kp = .01;
-    int intake1 = 3;
-    int intake2 = 3;
-    int intake3 = 4;
     double hueIntake, hueShoot;
     View relativeLayout;
     NormalizedColorSensor colorSensorIntake;
     NormalizedColorSensor colorSensorShoot;
     private ServoEx pitch = null;
-    private CRServoEx yaw = null;
+    private CRServoEx yaw1 = null;
+    private CRServoEx yaw2 = null;
     private ServoEx agigtator = null;
     private ServoEx indexer = null;
 
@@ -82,12 +81,18 @@ public class LM2_HSI_RED extends OpMode {
         //initializes hardware
         launcher = new MotorEx(hardwareMap, "launcher");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
-        yaw = new CRServoEx(hardwareMap, "yaw");
+        yaw1 = new CRServoEx(hardwareMap, "yaw1");
+        yaw2 = new CRServoEx(hardwareMap, "yaw2");
         agigtator = new ServoEx(hardwareMap, "agigtator");
         colorSensorIntake = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
         colorSensorShoot = hardwareMap.get(NormalizedColorSensor.class, "sensor_shoot");
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
+
+        yaw2.setInverted(true);
+
+        yaw1.setPIDF(new PIDFCoefficients(.1, 0.0, 0.1, 0.0001));
+        yaw2.setPIDF(new PIDFCoefficients(.1, 0, 0.1, 0.0001));
 
         int relativeLayoutId = hardwareMap.appContext.getResources().getIdentifier("RelativeLayout", "id", hardwareMap.appContext.getPackageName());
         relativeLayout = ((Activity) hardwareMap.appContext).findViewById(relativeLayoutId);
@@ -187,16 +192,24 @@ public class LM2_HSI_RED extends OpMode {
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
         telemetry.addData("# AprilTags Detected", currentDetections.size());
 
+
         for (AprilTagDetection detection : currentDetections) {
             if (detection.id == 1 && detection.metadata !=null) {
-                yaw.setPIDF(new PIDFCoefficients(kp, 0.0, 0.1, 0.0001));
-                yaw.set(kp*detection.ftcPose.bearing);
-                pitch.set(detection.ftcPose.pitch*5.9);
-                launcher.set(gamepad1.left_trigger);
+                yaw1.set(.01*detection.ftcPose.bearing);
+                yaw2.set(.01*detection.ftcPose.bearing);
+                double pitchAngleDegrees = detection.ftcPose.pitch*5.9;
+                pitch.set(pitchAngleDegrees);
+                double theta = Math.toRadians(pitchAngleDegrees);
+                double R = detection.ftcPose.range;
+                double h = detection.ftcPose.elevation;
+                double g = 9.8;
+                double numerator = g * R * R;
+                double denominator = 2 * Math.pow(Math.cos(theta), 2) * (R * Math.tan(theta) - h);
+                double velocity = Math.sqrt(numerator / denominator);
+                launcher.set(velocity);
             } else {
-                yaw.set(0);
-                telemetry.addLine(String.format("\n==== (ID %d) Unknown", detection.id));
-                telemetry.addLine(String.format("Center %6.0f %6.0f   (pixels)", detection.center.x, detection.center.y));
+                yaw1.set(0);
+                yaw2.set(0);
             }
         }   // end for() loop
 
@@ -215,33 +228,28 @@ public class LM2_HSI_RED extends OpMode {
             agigtator.set(0);
         }
 
+        if (hueShoot >90 && hueShoot <225) {
+            telemetry.addLine("GREEN");
+        } else if (hueShoot >225 && hueShoot <350) {
+            telemetry.addLine("PURPLE");
+        } else {
+            telemetry.addLine("EMPTY");
+        }
+
+
+
         if (gamepad1.dpadRightWasPressed()) {
             switch (indexIntake) {
                 case INTAKE_1:
                     indexer.set(0);
                     indexIntake = IndexIntake.INTAKE_2;
-                    if (hueIntake > 225 && hueIntake < 350){
-                        intake2 = 0;
-                    } else if (hueIntake > 90 && hueIntake < 150) {
-                        intake2 = 1;
-                    }
                     break;
                 case INTAKE_2:
                     indexIntake = IndexIntake.INTAKE_3;
-                    if (hueIntake > 225 && hueIntake < 350){
-                        intake3 = 0;
-                    } else if (hueIntake > 90 && hueIntake < 150) {
-                        intake3 = 1;
-                    }
                     indexer.set(130);
                     break;
                 case INTAKE_3:
                     indexer.set(270);
-                    if (hueIntake > 225 && hueIntake < 350){
-                        intake1 = 0;
-                    } else if (hueIntake > 90 && hueIntake < 150) {
-                        intake1 = 1;
-                    }
                     indexIntake = IndexIntake.INTAKE_1;
                     break;
             }
@@ -249,29 +257,14 @@ public class LM2_HSI_RED extends OpMode {
             switch (indexIntake) {
                 case INTAKE_1:
                     indexIntake = IndexIntake.INTAKE_2;
-                    if (hueIntake > 225 && hueIntake < 350){
-                        intake1 = 0;
-                    } else if (hueIntake > 90 && hueIntake < 150) {
-                        intake1 = 1;
-                    }
                     indexer.set(270);
                     break;
                 case INTAKE_2:
                     indexIntake = IndexIntake.INTAKE_3;
-                    if (hueIntake > 225 && hueIntake < 350){
-                        intake3 = 0;
-                    } else if (hueIntake > 90 && hueIntake < 150) {
-                        intake3 = 1;
-                    }
                     indexer.set(130);
                     break;
                 case INTAKE_3:
                     indexer.set(0);
-                    if (hueIntake > 225 && hueIntake < 350){
-                        intake2 = 0;
-                    } else if (hueIntake > 90 && hueIntake < 150) {
-                        intake2 = 1;
-                    }
                     indexIntake = IndexIntake.INTAKE_1;
                     break;
             }
@@ -289,11 +282,6 @@ public class LM2_HSI_RED extends OpMode {
                     break;
                 case SHOOT_3:
                     indexer.set(300);
-                    if (intake1 == 0) {
-                        relativeLayout.setBackgroundColor(Color.rgb(180, 53, 189));
-                    } else if (intake1 == 1) {
-                        relativeLayout.setBackgroundColor(Color.rgb(54, 201, 76));
-                    }
                     indexShoot = IndexShoot.SHOOT_1;
                     break;
             }
@@ -302,11 +290,6 @@ public class LM2_HSI_RED extends OpMode {
                 case SHOOT_1:
                     indexShoot = IndexShoot.SHOOT_2;
                     indexer.set(300);
-                    if (intake1 == 0) {
-                        relativeLayout.setBackgroundColor(Color.rgb(180, 53, 189));
-                    } else if (intake1 == 1) {
-                        relativeLayout.setBackgroundColor(Color.rgb(54, 201, 76));
-                    }
                     break;
                 case SHOOT_2:
                     indexShoot = IndexShoot.SHOOT_3;
