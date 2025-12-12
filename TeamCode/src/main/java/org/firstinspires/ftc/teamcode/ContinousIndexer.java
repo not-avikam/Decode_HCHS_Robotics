@@ -1,18 +1,13 @@
 package org.firstinspires.ftc.teamcode;
 
-import android.graphics.Color;
-
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.CRServo;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
-import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
 
@@ -23,169 +18,153 @@ public class ContinousIndexer extends OpMode {
     private CRServoEx indexer = null;
     private NormalizedColorSensor colorSensorIntake = null;
     private NormalizedColorSensor colorSensorShoot = null;
+
+    // States for the color sequence for each sensor
     private enum IndexIntake {
-        INTAKE_1,
-        INTAKE_2,
-        INTAKE_3
+        INTAKE_1, INTAKE_2, INTAKE_3
+    }
+    private enum IndexShoot {
+        SHOOT_1, SHOOT_2, SHOOT_3
     }
 
-    private enum IndexShoot {
-        SHOOT_1,
-        SHOOT_2,
-        SHOOT_3
+    // State machine for motor control
+    private enum MotionState {
+        IDLE,
+        SEARCHING_SHOOT_FORWARD,
+        SEARCHING_SHOOT_BACKWARD,
+        SEARCHING_INTAKE_FORWARD,
+        SEARCHING_INTAKE_BACKWARD
     }
-    double hueShoot, hueIntake;
+
     private IndexIntake indexIntake = IndexIntake.INTAKE_1;
     private IndexShoot indexShoot = IndexShoot.SHOOT_1;
-    private TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
+    private MotionState motionState = MotionState.IDLE;
+
+    double hueShoot, hueIntake;
+    private final TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
+
+    // TODO: Tune these hue value ranges for better accuracy
+    private boolean isYellow(double hue) { return (hue > 60 && hue < 150); }
+    private boolean isOrange(double hue) { return (hue > 30 && hue < 90); }
+    private boolean isBlue(double hue) { return (hue > 150 && hue < 350); }
 
 
     @Override
     public void init() {
-
         indexer = new CRServoEx(hardwareMap, "indexer");
         colorSensorIntake = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
         colorSensorShoot = hardwareMap.get(NormalizedColorSensor.class, "sensor_shoot");
-
     }
+
     @Override
     public void loop() {
-
+        // 1. Read sensor values at the start of every loop
         NormalizedRGBA colorsIntake = colorSensorIntake.getNormalizedColors();
         NormalizedRGBA colorsShoot = colorSensorShoot.getNormalizedColors();
         hueIntake = JavaUtil.colorToHue(colorsIntake.toColor());
         hueShoot = JavaUtil.colorToHue(colorsShoot.toColor());
 
-        if (gamepad1.dpadRightWasPressed()) {
-            switch (indexIntake) {
-                //TODO: fix hue values
-                //TODO: EXTREMELY IMPORTANT
-                case INTAKE_1:
-                    indexer.set(0);
-                    indexIntake = IndexIntake.INTAKE_2;
-                    //yellow
-                    if (hueShoot > 60 && hueShoot < 150){
-                        indexer.set(0);
-                    } else {
-                        indexer.set(1);
-                    }
-                    break;
-                case INTAKE_2:
-                    //orange
-                    indexIntake = IndexIntake.INTAKE_3;
-                    if (hueShoot > 30 && hueShoot < 90){
-                        indexer.set(0);
-                    } else {
-                        indexer.set(1);
-                    }
-                    break;
-                case INTAKE_3:
-                    //blue
-                    if (hueShoot > 150 && hueShoot < 350){
-                        indexer.set(0);
-                    } else {
-                        indexer.set(1);
-                    }
-                    indexIntake = IndexIntake.INTAKE_1;
-                    break;
-            }
-        } else if (gamepad1.dpadLeftWasPressed()) {
-            switch (indexIntake) {
-                case INTAKE_1:
-                    indexIntake = IndexIntake.INTAKE_2;
-                    //blue
-                    if (hueShoot > 150 && hueShoot < 350){
-                        indexer.set(0);
-                    } else {
-                        indexer.set(1);
-                    }
-                    break;
-                case INTAKE_2:
-                    indexIntake = IndexIntake.INTAKE_3;
-                    //orange
-                    if (hueShoot > 30 && hueShoot < 90){
-                        indexer.set(0);
-                    } else {
-                        indexer.set(1);
-                    }
-                    break;
-                case INTAKE_3:
-                    //yellow
-                    if (hueShoot > 60 && hueShoot < 150){
-                        indexer.set(1);
-                    } else {
-                        indexer.set(0);
-                    }
-                    indexIntake = IndexIntake.INTAKE_1;
-                    break;
-            }
-        }
-
+        // 2. Handle gamepad inputs to change the motion state
+        // This section decides WHAT to do
         if (gamepad1.dpadUpWasPressed()) {
-            switch (indexShoot) {
-                case SHOOT_1:
-                    //yellow
-                    indexShoot = IndexShoot.SHOOT_2;
-                    if (hueIntake > 60 && hueIntake < 150){
-                        indexer.set(1);
-                    } else {
-                        indexer.set(0);
-                    }
-                    break;
-                case SHOOT_2:
-                    indexShoot = IndexShoot.SHOOT_3;
-                    //orange
-                    if (hueIntake > 30 && hueIntake < 90){
-                        indexer.set(1);
-                    } else {
-                        indexer.set(0);
-                    }
-                    break;
-                case SHOOT_3:
-                    //blue
-                    if (hueIntake > 150 && hueIntake < 350){
-                        indexer.set(0);
-                    } else {
-                        indexer.set(1);
-                    }
-                    indexShoot = IndexShoot.SHOOT_1;
-                    break;
-            }
+            motionState = MotionState.SEARCHING_SHOOT_FORWARD;
         } else if (gamepad1.dpadDownWasPressed()) {
-            switch (indexShoot) {
-                case SHOOT_1:
-                    indexShoot = IndexShoot.SHOOT_2;
-                    //blue
-                    if (hueIntake > 150 && hueIntake < 350){
-                        indexer.set(0);
-                    } else {
-                        indexer.set(1);
-                    }
-                    break;
-                case SHOOT_2:
-                    indexShoot = IndexShoot.SHOOT_3;
-                    //orange
-                    if (hueIntake > 30 && hueIntake < 90){
-                        indexer.set(1);
-                    } else {
-                        indexer.set(0);
-                    }
-                    break;
-                case SHOOT_3:
-                    indexShoot = IndexShoot.SHOOT_1;
-                    //yellow
-                    if (hueIntake > 60 && hueIntake < 150){
-                        indexer.set(1);
-                    } else {
-                        indexer.set(0);
-                    }
-                    break;
-            }
+            motionState = MotionState.SEARCHING_SHOOT_BACKWARD;
+        } else if (gamepad1.dpadRightWasPressed()) {
+            motionState = MotionState.SEARCHING_INTAKE_FORWARD;
+        } else if (gamepad1.dpadLeftWasPressed()) {
+            motionState = MotionState.SEARCHING_INTAKE_BACKWARD;
+        } else if (gamepad1.bWasPressed()) { // Manual stop
+            motionState = MotionState.IDLE;
         }
 
-        panelsTelemetry.addData("intake hue", hueIntake);
-        panelsTelemetry.addData("shoot hue", hueShoot);
-        panelsTelemetry.update(telemetry);
+        // 3. Execute the logic based on the current motion state
+        // This section figures out HOW to do it, and runs every loop cycle
+        boolean colorFound = false;
+        switch (motionState) {
+            case IDLE:
+                indexer.set(0);
+                break;
 
+            case SEARCHING_INTAKE_FORWARD:
+                switch (indexIntake) {
+                    case INTAKE_1: if (isYellow(hueShoot)) colorFound = true; break;
+                    case INTAKE_2: if (isOrange(hueShoot)) colorFound = true; break;
+                    case INTAKE_3: if (isBlue(hueShoot)) colorFound = true; break;
+                }
+
+                if (colorFound) {
+                    indexer.set(0); // Stop motor immediately
+                    motionState = MotionState.IDLE;
+                    indexIntake = (indexIntake == IndexIntake.INTAKE_1) ? IndexIntake.INTAKE_2 :
+                                  (indexIntake == IndexIntake.INTAKE_2) ? IndexIntake.INTAKE_3 :
+                                  IndexIntake.INTAKE_1;
+                } else {
+                    indexer.set(1); // Run motor forward
+                }
+                break;
+
+            case SEARCHING_INTAKE_BACKWARD:
+                switch (indexIntake) {
+                    case INTAKE_1: if (isBlue(hueShoot)) colorFound = true; break;
+                    case INTAKE_2: if (isOrange(hueShoot)) colorFound = true; break;
+                    case INTAKE_3: if (isYellow(hueShoot)) colorFound = true; break;
+                }
+
+                if (colorFound) {
+                    indexer.set(0); // Stop motor immediately
+                    motionState = MotionState.IDLE;
+                    indexIntake = (indexIntake == IndexIntake.INTAKE_1) ? IndexIntake.INTAKE_2 :
+                                  (indexIntake == IndexIntake.INTAKE_2) ? IndexIntake.INTAKE_3 :
+                                  IndexIntake.INTAKE_1;
+                } else {
+                    indexer.set(-1); // Run motor backward
+                }
+                break;
+
+            case SEARCHING_SHOOT_FORWARD:
+                switch (indexShoot) {
+                    case SHOOT_1: if (isYellow(hueIntake)) colorFound = true; break;
+                    case SHOOT_2: if (isOrange(hueIntake)) colorFound = true; break;
+                    case SHOOT_3: if (isBlue(hueIntake)) colorFound = true; break;
+                }
+
+                if (colorFound) {
+                    indexer.set(0); // Stop motor immediately
+                    motionState = MotionState.IDLE;
+                    indexShoot = (indexShoot == IndexShoot.SHOOT_1) ? IndexShoot.SHOOT_2 :
+                                 (indexShoot == IndexShoot.SHOOT_2) ? IndexShoot.SHOOT_3 :
+                                 IndexShoot.SHOOT_1;
+                } else {
+                    indexer.set(1); // Run motor forward
+                }
+                break;
+
+            case SEARCHING_SHOOT_BACKWARD:
+                switch (indexShoot) {
+                    case SHOOT_1: if (isBlue(hueIntake)) colorFound = true; break;
+                    case SHOOT_2: if (isOrange(hueIntake)) colorFound = true; break;
+                    case SHOOT_3: if (isYellow(hueIntake)) colorFound = true; break;
+                }
+
+                if (colorFound) {
+                    indexer.set(0); // Stop motor immediately
+                    motionState = MotionState.IDLE;
+                    indexShoot = (indexShoot == IndexShoot.SHOOT_1) ? IndexShoot.SHOOT_2 :
+                                 (indexShoot == IndexShoot.SHOOT_2) ? IndexShoot.SHOOT_3 :
+                                 IndexShoot.SHOOT_1;
+                } else {
+                    indexer.set(-1); // Run motor backward
+                }
+                break;
+        }
+
+        // 4. Update telemetry
+        telemetry.addData("Intake Hue", "%.2f", hueIntake);
+        telemetry.addData("Shoot Hue", "%.2f", hueShoot);
+        panelsTelemetry.addData("Motion State", motionState.name());
+        panelsTelemetry.addData("Next Intake Color", indexIntake.name());
+        panelsTelemetry.addData("Next Shoot Color", indexShoot.name());
+        panelsTelemetry.update(telemetry);
     }
 }
