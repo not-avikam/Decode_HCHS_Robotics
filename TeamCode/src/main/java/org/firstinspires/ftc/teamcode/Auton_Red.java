@@ -502,21 +502,21 @@ public class Auton_Red extends OpMode {
                 intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(0);
-                    setIntakeBall2(1);
+                    setIntakeBall3(1);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(0);
-                    setIntakeBall2(1);
+                    setIntakeBall3(1);
                 }
                 break;
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(270);
                     intake.setPower(0);
-                    setIntakeBall2(2);
+                    setIntakeBall3(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(270);
                     intake.setPower(0);
-                    setIntakeBall2(2);
+                    setIntakeBall3(2);
                 }
                 break;
             case 2:
@@ -719,19 +719,25 @@ public class Auton_Red extends OpMode {
     /** This method is called continuously after Init while waiting for "play". **/
     @Override
     public void init_loop() {
-        if (detection.id==PPG_TAG_ID) {
-            detected_obelisk = PPG_TAG_ID;
-            telemetry.addLine("Purple Purple Green detected");
-        } else if (detection.id==PGP_TAG_ID) {
-            detected_obelisk = PGP_TAG_ID;
-            telemetry.addLine("Purple Green Purple detected");
-        } else if (detection.id==GPP_TAG_ID) {
-            detected_obelisk = GPP_TAG_ID;
-            telemetry.addLine("Green Purple Purple detected");
+        if (detection != null) {
+            if (detection.id == PPG_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
+                detected_obelisk = PPG_TAG_ID;
+                telemetry.addLine("Purple Purple Green detected");
+            } else if (detection.id == PGP_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
+                detected_obelisk = PGP_TAG_ID;
+                telemetry.addLine("Purple Green Purple detected");
+            } else if (detection.id == GPP_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
+                detected_obelisk = GPP_TAG_ID;
+                telemetry.addLine("Green Purple Purple detected");
+            } else {
+                telemetry.addLine("No matching Tag Detected in range");
+            }
         } else {
             telemetry.addLine("No Tag Detected");
         }
+        telemetry.update();
     }
+
 
     /** This method is called once at the start of the OpMode.
      * It runs all the setup actions, including building paths and starting the path system **/
