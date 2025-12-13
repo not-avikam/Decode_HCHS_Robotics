@@ -71,7 +71,6 @@ public class LM2_HSI_RED extends OpMode {
 
     private IndexIntake indexIntake = IndexIntake.INTAKE_1;
     private IndexShoot indexShoot = IndexShoot.SHOOT_1;
-
     double goalX = 137;
     double goalY = 142;
 
@@ -100,6 +99,7 @@ public class LM2_HSI_RED extends OpMode {
         //initializes follower for pedropathing
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startingPose == null ? new Pose() : startingPose);
+
         follower.update();
 
         //initializes telemetry
@@ -193,10 +193,16 @@ public class LM2_HSI_RED extends OpMode {
         telemetry.addData("# AprilTags Detected", currentDetections.size());
 
 
+
         for (AprilTagDetection detection : currentDetections) {
-            if (detection.id == 1 && detection.metadata !=null) {
-                yaw1.set(.01*detection.ftcPose.bearing);
-                yaw2.set(.01*detection.ftcPose.bearing);
+            if (detection.id == 24 && detection.metadata !=null) {
+                if (gamepad1.b) {
+                    yaw1.set(0);
+                    yaw2.set(0);
+                    follower.setPose(new Pose(detection.robotPose.getPosition().x, detection.robotPose.getPosition().y, 0, FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE));
+                }
+                yaw1.set(.05*detection.ftcPose.bearing);
+                yaw2.set(.05*detection.ftcPose.bearing);
                 double pitchAngleDegrees = detection.ftcPose.pitch*5.9;
                 pitch.set(pitchAngleDegrees);
                 double theta = Math.toRadians(pitchAngleDegrees);
@@ -205,20 +211,22 @@ public class LM2_HSI_RED extends OpMode {
                 double g = 9.8;
                 double numerator = g * R * R;
                 double denominator = 2 * Math.pow(Math.cos(theta), 2) * (R * Math.tan(theta) - h);
-                double velocity = Math.sqrt(numerator / denominator);
-                launcher.set(velocity);
+                double velocity = (Math.sqrt(numerator / denominator))*142.239908137;
+                if (gamepad1.left_trigger != 0) {
+                    launcher.set(velocity);
+                } else {
+                    launcher.set(0);
+                }
+                //makes gamepad vibrate when the launcher is at the minimum velocity
+                if (launcher.getVelocity() == velocity) {
+                    gamepad1.rumble(1000);
+                }
             } else {
-                yaw1.set(0);
-                yaw2.set(0);
+                yaw1.set(follower.getHeading()-(-1*Math.toDegrees(Math.atan2(follower.getPose().getX(), follower.getPose().getY()))));
+                yaw1.set(follower.getHeading()-(-1*Math.toDegrees(Math.atan2(follower.getPose().getX(), follower.getPose().getY()))));
+                launcher.set(0);
             }
         }   // end for() loop
-
-
-        //makes gamepad vibrate when the launcher is at the minimum velocity
-        if (launcher.getVelocity() >= 2300) {
-            gamepad1.rumble(1000);
-        }
-
 
         //sets the position of the agigtator when the right trigger is pressed
         //basically, when right trigger is pressed, the ball shoots out
