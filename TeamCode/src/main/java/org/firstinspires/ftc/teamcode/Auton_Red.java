@@ -4,8 +4,10 @@ import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
 
 import com.pedropathing.follower.Follower;
+import com.pedropathing.ftc.FTCCoordinates;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.geometry.PedroCoordinates;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.HeadingInterpolator;
 import com.pedropathing.paths.Path;
@@ -32,15 +34,16 @@ import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
+import java.util.List;
+
 //TODO: Use a color sensor to verify that hue values are correct
 
-@Autonomous(name="Auto", group="HSI LM2")
+@Autonomous(name="Auto Red HSI", group="HSI LM2")
 public class Auton_Red extends OpMode {
 
     private static final boolean USE_WEBCAM = true;  // true for webcam, false for phone camera
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
-    private AprilTagDetection detection;
     private static final int PPG_TAG_ID = 23;
     private static final int PGP_TAG_ID = 22;
     private static final int GPP_TAG_ID = 21;
@@ -48,23 +51,23 @@ public class Auton_Red extends OpMode {
     private MotorEx launcher = null;
     private DcMotorEx intake = null;
     private ServoEx agigtator = null;
-    private Servo pitch = null;
+    private ServoEx pitch = null;
     private CRServoEx yaw1, yaw2 = null;
     private ServoEx indexer = null;
     NormalizedColorSensor colorSensor;
     private final Pose startPose = new Pose(117,128, Math.toRadians(45));
-    private final Pose scorePreload = new Pose(84, 84, Math.toRadians(45)); // Start Pose of our robot.
+    private final Pose scorePreload = new Pose(97, 84, Math.toRadians(45)); // Start Pose of our robot.
     private final Pose scoreFace = new Pose(137,142);
-    private final Pose pickup1pose = new Pose(131, 83, Math.toRadians(0));
-    private final Pose pickup1posectrl = new Pose(109,82);
-    private final Pose scorePose2 = new Pose(83, 82, Math.toRadians(45));
-    private final Pose scorePose3 = new Pose(75, 75, Math.toRadians(45));
-    private final Pose pickup2Pose = new Pose(132, 61, Math.toRadians(0));
-    private final Pose pickup2Posectrl = new Pose(85, 50);
-    private final Pose pickup3Pose = new Pose(130, 36, Math.toRadians(0)); // Lowest (Third Set) of Artifacts from the Spike Mark.
-    private final Pose pickup3Posectrl = new Pose(66, 30);
+    private final Pose pickup1pose = new Pose(127, 83, Math.toRadians(0));
+    private final Pose scorePose2 = new Pose(88, 76, Math.toRadians(45));
+    private final Pose scorePose3 = new Pose(81, 67, Math.toRadians(45));
+    private final Pose pickup2Pose = new Pose(133, 57, Math.toRadians(0));
+    private final Pose pickup2Posectrl = new Pose(88, 59);
+    private final Pose pickup3Pose = new Pose(132, 35, Math.toRadians(0)); // Lowest (Third Set) of Artifacts from the Spike Mark.
+    private final Pose pickup3Posectrl = new Pose(90, 32);
     private final Pose scorePose4 = new Pose(80, 16, Math.toRadians(67));
     private final Pose human = new Pose (10,10, Math.toRadians(180));
+    double velocity;
     private double kP = .01;
 
     private Follower follower;
@@ -80,7 +83,7 @@ public class Auton_Red extends OpMode {
         /* This is our scorePreload path. We are using a BezierLine, which is a straight line. */
         preload = follower.pathBuilder()
                 .addPath(new BezierCurve(startPose,  scorePreload))
-                .setHeadingInterpolation(HeadingInterpolator.facingPoint(scorePreload))
+                .setHeadingInterpolation(HeadingInterpolator.linear(45, 0))
                 .build();
         //scorePreload.setLinearHeadingInterpolation(startPose.getHeading(), scorePose.getHeading());
 
@@ -89,43 +92,43 @@ public class Auton_Red extends OpMode {
 
         /* This is our grabPickup1 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         grabPickup1 = follower.pathBuilder()
-                .addPath(new BezierCurve(scorePreload, pickup1posectrl,  pickup1pose))
-                .setHeadingInterpolation(HeadingInterpolator.facingPoint(pickup1pose))
+                .addPath(new BezierLine(scorePreload,  pickup1pose))
+                .setConstantHeadingInterpolation(0)
                 .build();
 
         /* This is our scorePickup1 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         scorePickup1 = follower.pathBuilder()
                 .addPath(new BezierLine(pickup1pose, scorePose2))
-                .setHeadingInterpolation(HeadingInterpolator.facingPoint(scoreFace))
+                .setConstantHeadingInterpolation(0)
                 .build();
 
         /* This is our grabPickup2 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         grabPickup2 = follower.pathBuilder()
                 .addPath(new BezierCurve(scorePose2, pickup2Posectrl, pickup2Pose))
-                .setHeadingInterpolation(HeadingInterpolator.facingPoint(pickup2Pose))
+                .setConstantHeadingInterpolation(0)
                 .build();
 
         /* This is our scorePickup2 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         scorePickup2 = follower.pathBuilder()
                 .addPath(new BezierLine(pickup2Pose, scorePose3))
-                .setHeadingInterpolation(HeadingInterpolator.facingPoint(scoreFace))
+                .setConstantHeadingInterpolation(0)
                 .build();
 
         /* This is our grabPickup3 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         grabPickup3 = follower.pathBuilder()
                 .addPath(new BezierCurve(scorePose3, pickup3Posectrl, pickup3Pose))
-                .setHeadingInterpolation(HeadingInterpolator.facingPoint(pickup3Pose))
+                .setConstantHeadingInterpolation(0)
                 .build();
 
         /* This is our scorePickup3 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         scorePickup3 = follower.pathBuilder()
                 .addPath(new BezierLine(pickup3Pose, scorePose4))
-                .setHeadingInterpolation(HeadingInterpolator.facingPoint(scoreFace))
+                .setConstantHeadingInterpolation(0)
                 .build();
 
         goToHuman = follower.pathBuilder()
                 .addPath(new BezierLine(scorePose4, human))
-                .setLinearHeadingInterpolation(scorePose4.getHeading(), human.getHeading())
+                .setLinearHeadingInterpolation(0, 180)
                 .build();
 
     }
@@ -134,11 +137,13 @@ public class Auton_Red extends OpMode {
         switch (pathState) {
             case 0:
                 follower.followPath(preload, false);
+                setPathState(1);
+                break;
             case 1:
                 setShootBall(0);
                 shoot();
                 if (shootBall >= 6) {
-                    setPathState(1);
+                    setPathState(2);
                 }
                 break;
             case 2:
@@ -154,7 +159,7 @@ public class Auton_Red extends OpMode {
 
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
                     follower.followPath(grabPickup1,false);
-                    setPathState(2);
+                    setPathState(3);
                 }
                 break;
             case 3:
@@ -172,7 +177,7 @@ public class Auton_Red extends OpMode {
 
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are scoring the sample */
                     follower.followPath(scorePickup1,true);
-                    setPathState(3);
+                    setPathState(4);
                 }
                 break;
             case 4:
@@ -184,7 +189,7 @@ public class Auton_Red extends OpMode {
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
                     if (shootBall >= 6){
                         follower.followPath(grabPickup2,false);
-                        setPathState(4);
+                        setPathState(5);
                     }
                 }
                 break;
@@ -203,7 +208,7 @@ public class Auton_Red extends OpMode {
 
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are scoring the sample */
                     follower.followPath(scorePickup2,true);
-                    setPathState(5);
+                    setPathState(6);
                 }
                 break;
             case 6:
@@ -215,7 +220,7 @@ public class Auton_Red extends OpMode {
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
                     if (shootBall >= 6) {
                         follower.followPath(grabPickup3,false);
-                        setPathState(6);
+                        setPathState(7);
                     }
                 }
                 break;
@@ -233,7 +238,7 @@ public class Auton_Red extends OpMode {
                     /* Grab Sample */
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are scoring the sample */
                     follower.followPath(scorePickup3, true);
-                    setPathState(7);
+                    setPathState(8);
                 }
                 break;
             case 8:
@@ -542,9 +547,9 @@ public class Auton_Red extends OpMode {
 
         switch (shootBall) {
             case 0:
-                launcher.set(1);
+                launcher.set(velocity);
                 indexer.set(300);
-                if ((launcher.getVelocity()) >= (2300)) {
+                if ((launcher.getVelocity()) == (velocity)) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(1);
@@ -565,7 +570,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 3:
-                if ((launcher.getVelocity()) >= (2300) && actionTimer.getElapsedTimeSeconds() >= .2) {
+                if ((launcher.getVelocity()) == (velocity) && actionTimer.getElapsedTimeSeconds() >= .2) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(4);
@@ -586,7 +591,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 6:
-                if ((launcher.getVelocity()) >= (2300) && actionTimer.getElapsedTimeSeconds() > .2) {
+                if ((launcher.getVelocity()) == (velocity) && actionTimer.getElapsedTimeSeconds() > .2) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(7);
@@ -600,7 +605,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 8:
-                launcher.setVelocity(.3);
+                launcher.setVelocity(0);
                 if (actionTimer.getElapsedTimeSeconds() > .2) {
                     indexer.set(0);
                     actionTimer.resetTimer();
@@ -637,18 +642,29 @@ public class Auton_Red extends OpMode {
             ((SwitchableLight)colorSensor).enableLight(true);
         }
 
-        if (detection.id == 24) {
-            yaw1.set(detection.ftcPose.bearing * kP);
-            yaw2.set(detection.ftcPose.bearing * kP);
-        } else {
-            yaw1.set(1);
-            yaw2.set(1);
-        }
+        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+        telemetry.addData("# AprilTags Detected", currentDetections.size());
 
 
-        telemetry.addData("Launch Angle", launchAngle);
-
-        pitch.setPosition(launchAngle);
+        for (AprilTagDetection detection : currentDetections) {
+            if (detection.id == 24 && detection.metadata !=null) {
+                yaw1.set(.05*detection.ftcPose.bearing);
+                yaw2.set(.05*detection.ftcPose.bearing);
+                double pitchAngleDegrees = detection.ftcPose.pitch*5.9;
+                pitch.set(pitchAngleDegrees);
+                double theta = Math.toRadians(pitchAngleDegrees);
+                double R = detection.ftcPose.range;
+                double h = detection.ftcPose.elevation;
+                double g = 9.8;
+                double numerator = g * R * R;
+                double denominator = 2 * Math.pow(Math.cos(theta), 2) * (R * Math.tan(theta) - h);
+                double velocity = (Math.sqrt(numerator / denominator))*142.239908137;
+            } else {
+                yaw1.set(follower.getHeading()-(-1*Math.toDegrees(Math.atan2(follower.getPose().getX(), follower.getPose().getY()))));
+                yaw1.set(follower.getHeading()-(-1*Math.toDegrees(Math.atan2(follower.getPose().getX(), follower.getPose().getY()))));
+                launcher.set(0);
+            }
+        }   // end for() loop
 
         // These loop the movements of the robot, these must be called continuously in order to work
         follower.update();
@@ -667,7 +683,7 @@ public class Auton_Red extends OpMode {
         launcher = new MotorEx(hardwareMap, "launcher");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
         agigtator = new ServoEx(hardwareMap, "agigtator");
-        pitch = hardwareMap.get(Servo.class, "pitch");
+        pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         indexer = new ServoEx(hardwareMap, "indexer", 1, AngleUnit.DEGREES);
         yaw1 = new CRServoEx(hardwareMap, "yaw1");
         yaw2 = new CRServoEx(hardwareMap, "yaw2");
@@ -719,23 +735,30 @@ public class Auton_Red extends OpMode {
     /** This method is called continuously after Init while waiting for "play". **/
     @Override
     public void init_loop() {
-        if (detection != null) {
-            if (detection.id == PPG_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
-                detected_obelisk = PPG_TAG_ID;
-                telemetry.addLine("Purple Purple Green detected");
-            } else if (detection.id == PGP_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
-                detected_obelisk = PGP_TAG_ID;
-                telemetry.addLine("Purple Green Purple detected");
-            } else if (detection.id == GPP_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
-                detected_obelisk = GPP_TAG_ID;
-                telemetry.addLine("Green Purple Purple detected");
+        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+        telemetry.addData("# AprilTags Detected", currentDetections.size());
+
+        for (AprilTagDetection detection : currentDetections) {
+
+            if (detection != null) {
+                if (detection.id == PPG_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
+                    detected_obelisk = PPG_TAG_ID;
+                    telemetry.addLine("Purple Purple Green detected");
+                } else if (detection.id == PGP_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
+                    detected_obelisk = PGP_TAG_ID;
+                    telemetry.addLine("Purple Green Purple detected");
+                } else if (detection.id == GPP_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
+                    detected_obelisk = GPP_TAG_ID;
+                    telemetry.addLine("Green Purple Purple detected");
+                } else {
+                    telemetry.addLine("No matching Tag Detected in range");
+                }
             } else {
-                telemetry.addLine("No matching Tag Detected in range");
+                telemetry.addLine("No Tag Detected");
             }
-        } else {
-            telemetry.addLine("No Tag Detected");
+
+            telemetry.update();
         }
-        telemetry.update();
     }
 
 
