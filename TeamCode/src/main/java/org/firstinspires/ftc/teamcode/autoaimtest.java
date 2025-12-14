@@ -37,6 +37,7 @@ public class autoaimtest extends OpMode {
     private static final boolean USE_WEBCAM = true;  // true for webcam, false for phone camera
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
+    public static double servo_speed = 0;
     public static double kp = 1;
     public static double ki = 1;
     public static double kd = 0;
@@ -57,8 +58,8 @@ public class autoaimtest extends OpMode {
 
         yaw1.setInverted(true);
 
-        yaw1.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
-        yaw2.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
+        //yaw1.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
+        //yaw2.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
 
         launcher.setInverted(true);
 
@@ -100,8 +101,8 @@ public class autoaimtest extends OpMode {
         //for red goal
         for (AprilTagDetection detection : currentDetections) {
             if (detection.id == 24 && detection.metadata !=null) {
-                yaw1.set(.01*detection.ftcPose.bearing);
-                yaw2.set(.01*detection.ftcPose.bearing);
+                yaw1.set(.05*detection.ftcPose.bearing);
+                yaw2.set(.05*detection.ftcPose.bearing);
                 double pitchAngleDegrees = detection.ftcPose.pitch*5.9;
                 pitch.set(pitchAngleDegrees);
                 double theta = Math.toRadians(pitchAngleDegrees);
@@ -116,9 +117,9 @@ public class autoaimtest extends OpMode {
                 } else {
                     launcher.set(0);
                 }
-            } else if (detection.metadata == null) {
-                yaw1.set(0);
-                yaw2.set(0);
+            } else if (currentDetections.isEmpty()) {
+                yaw1.set(servo_speed);
+                yaw2.set(servo_speed);
                 launcher.set(0);
             }
         }   // end for() loop
