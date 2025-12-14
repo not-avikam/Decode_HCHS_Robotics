@@ -2,6 +2,8 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
+import static org.firstinspires.ftc.teamcode.pedroPathing.Tuning.follower;
+
 import android.app.Activity;
 import android.view.View;
 
@@ -52,7 +54,7 @@ public class LM2_HSI_RED extends OpMode {
     private MotorEx launcher = null;
 
     private Follower follower;
-    public Pose startingPose; //See ExampleAuto to understand how to use this
+    public Pose startingPose = new Pose(0,0, Math.toRadians(0)) ; //See ExampleAuto to understand how to use this
     private TelemetryManager telemetryM;
     private boolean slowMode = false;
     private double slowModeMultiplier = 0.5;
@@ -98,7 +100,7 @@ public class LM2_HSI_RED extends OpMode {
 
         //initializes follower for pedropathing
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(startingPose == null ? new Pose() : startingPose);
+        follower.setStartingPose(new Pose());
 
         follower.update();
 
@@ -141,6 +143,8 @@ public class LM2_HSI_RED extends OpMode {
 
     @Override
     public void start() {
+        follower.startTeleopDrive();
+        follower.update();
     }
 
     @Override
@@ -199,7 +203,7 @@ public class LM2_HSI_RED extends OpMode {
                 if (gamepad1.b) {
                     yaw1.set(0);
                     yaw2.set(0);
-                    follower.setPose(new Pose(detection.robotPose.getPosition().x, detection.robotPose.getPosition().y, 0, FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE));
+                    follower.setPose(new Pose(detection.robotPose.getPosition().x, detection.robotPose.getPosition().y, follower.getHeading(), FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE));
                 }
                 yaw1.set(.05*detection.ftcPose.bearing);
                 yaw2.set(.05*detection.ftcPose.bearing);
@@ -222,8 +226,8 @@ public class LM2_HSI_RED extends OpMode {
                     gamepad1.rumble(1000);
                 }
             } else {
-                yaw1.set(follower.getHeading()-(-1*Math.toDegrees(Math.atan2(follower.getPose().getX(), follower.getPose().getY()))));
-                yaw1.set(follower.getHeading()-(-1*Math.toDegrees(Math.atan2(follower.getPose().getX(), follower.getPose().getY()))));
+                yaw1.set(0);
+                yaw1.set(0);
                 launcher.set(0);
             }
         }   // end for() loop
