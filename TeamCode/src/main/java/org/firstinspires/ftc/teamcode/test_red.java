@@ -32,7 +32,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
 
-@TeleOp(name = "RED Decode LM2", group = "HSI LM2")
+@TeleOp(name = "what", group = "HSI LM2")
 public class test_red extends OpMode {
     //private static final boolean USE_WEBCAM = true;  // true for webcam, false for phone camera
     //private AprilTagProcessor aprilTag;
