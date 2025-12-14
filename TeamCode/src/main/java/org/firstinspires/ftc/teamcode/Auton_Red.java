@@ -35,6 +35,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
+import java.util.Random;
 
 //TODO: Use a color sensor to verify that hue values are correct
 
@@ -549,7 +550,7 @@ public class Auton_Red extends OpMode {
             case 0:
                 launcher.set(velocity);
                 indexer.set(300);
-                if ((launcher.getVelocity()) == (velocity)) {
+                if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100)) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(1);
@@ -570,7 +571,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 3:
-                if ((launcher.getVelocity()) == (velocity) && actionTimer.getElapsedTimeSeconds() >= .2) {
+                if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() >= .2) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(4);
@@ -591,7 +592,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 6:
-                if ((launcher.getVelocity()) == (velocity) && actionTimer.getElapsedTimeSeconds() > .2) {
+                if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() > .2) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(7);
@@ -755,6 +756,8 @@ public class Auton_Red extends OpMode {
                 }
             } else {
                 telemetry.addLine("No Tag Detected");
+                telemetry.addLine("Defaulting to Purple Purple Green");
+                detected_obelisk = PPG_TAG_ID;
             }
 
             telemetry.update();
