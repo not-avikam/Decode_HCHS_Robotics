@@ -28,7 +28,10 @@ import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.BuiltinCameraDirection;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.GainControl;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
@@ -36,6 +39,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 //TODO: Use a color sensor to verify that hue values are correct
 
@@ -67,9 +71,10 @@ public class Auton_Red extends OpMode {
     private final Pose pickup3Pose = new Pose(132, 35, Math.toRadians(0)); // Lowest (Third Set) of Artifacts from the Spike Mark.
     private final Pose pickup3Posectrl = new Pose(90, 32);
     private final Pose scorePose4 = new Pose(80, 16, Math.toRadians(67));
-    private final Pose human = new Pose (10,10, Math.toRadians(180));
+    private final Pose human = new Pose (134,42, Math.toRadians(90));
     double velocity;
     private double kP = .01;
+    private double pitchAngleDegrees;
 
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer, shootTimer;
@@ -129,7 +134,7 @@ public class Auton_Red extends OpMode {
 
         goToHuman = follower.pathBuilder()
                 .addPath(new BezierLine(scorePose4, human))
-                .setLinearHeadingInterpolation(0, 180)
+                .setLinearHeadingInterpolation(0, 90)
                 .build();
 
     }
@@ -195,7 +200,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 5:
-                setIntakeBall2(0);
+                setIntakeBall1(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -226,7 +231,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 7:
-                setIntakeBall3(0);
+                setIntakeBall1(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -250,8 +255,21 @@ public class Auton_Red extends OpMode {
                     if (shootBall >= 6) {
                         follower.followPath(goToHuman, true);
                         /* Set the state to a Case we won't use or define, so it just stops running an new paths */
-                        setPathState(-1);
+                        setPathState(9);
                     }
+                }
+                break;
+            case 9:
+                setIntakeBall1(0);
+                if (detected_obelisk == PPG_TAG_ID) {
+                    intakePPG();
+                } else if (detected_obelisk == PGP_TAG_ID) {
+                    intakePGP();
+                } else if (detected_obelisk == GPP_TAG_ID) {
+                    intakeGPP();
+                }
+                if (intakeBall3 == 3) {
+                    setPathState(-1);
                 }
                 break;
         }
@@ -288,7 +306,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 2:
-                setIntakeBall1(3);
+                setIntakeBall2(0);
                 break;
         }
 
@@ -315,7 +333,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 2:
-                setIntakeBall2(3);
+                setIntakeBall3(0);
                 break;
         }
 
@@ -325,25 +343,25 @@ public class Auton_Red extends OpMode {
                 intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(0);
-                    setIntakeBall2(1);
+                    setIntakeBall3(1);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(0);
-                    setIntakeBall2(1);
+                    setIntakeBall3(1);
                 }
                 break;
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(130);
                     intake.setPower(0);
-                    setIntakeBall2(2);
+                    setIntakeBall3(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(130);
                     intake.setPower(0);
-                    setIntakeBall2(2);
+                    setIntakeBall3(2);
                 }
                 break;
             case 2:
-                setIntakeBall2(3);
+                setIntakeBall3(3);
                 break;
         }
 
@@ -380,7 +398,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 2:
-                setIntakeBall1(3);
+                setIntakeBall2(0);
                 break;
         }
 
@@ -408,7 +426,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 2:
-                setIntakeBall2(3);
+                setIntakeBall3(0);
                 break;
         }
 
@@ -417,25 +435,25 @@ public class Auton_Red extends OpMode {
                 intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(130);
-                    setIntakeBall2(1);
+                    setIntakeBall3(1);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(130);
-                    setIntakeBall2(1);
+                    setIntakeBall3(1);
                 }
                 break;
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(270);
                     intake.setPower(0);
-                    setIntakeBall2(2);
+                    setIntakeBall3(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(270);
                     intake.setPower(0);
-                    setIntakeBall2(2);
+                    setIntakeBall3(2);
                 }
                 break;
             case 2:
-                setIntakeBall2(3);
+                setIntakeBall3(3);
                 break;
         }
 
@@ -471,7 +489,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 2:
-                setIntakeBall1(3);
+                setIntakeBall2(0);
                 break;
         }
 
@@ -498,7 +516,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 2:
-                setIntakeBall2(3);
+                setIntakeBall3(0);
                 break;
         }
 
@@ -526,7 +544,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 2:
-                setIntakeBall2(3);
+                setIntakeBall3(3);
                 break;
         }
 
@@ -548,7 +566,6 @@ public class Auton_Red extends OpMode {
 
         switch (shootBall) {
             case 0:
-                launcher.set(velocity);
                 indexer.set(300);
                 if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100)) {
                     agigtator.set(.3);
@@ -626,18 +643,12 @@ public class Auton_Red extends OpMode {
     public void setPathState(int pState) {
         pathState = pState;
         pathTimer.resetTimer();
+
     }
 
     /** This is the main loop of the OpMode, it will run repeatedly after clicking "Play". **/
     @Override
     public void loop() {
-
-        double distanceToTarget = Math.sqrt(
-                Math.pow(follower.getPose().getX() - 137, 2) +
-                        Math.pow(follower.getPose().getY() - 142, 2)
-        );
-
-        double launchAngle = Math.toDegrees(Math.atan2(54, distanceToTarget));
 
         if (colorSensor instanceof SwitchableLight) {
             ((SwitchableLight)colorSensor).enableLight(true);
@@ -649,9 +660,17 @@ public class Auton_Red extends OpMode {
 
         for (AprilTagDetection detection : currentDetections) {
             if (detection.id == 24 && detection.metadata !=null) {
-                yaw1.set(.05*detection.ftcPose.bearing);
-                yaw2.set(.05*detection.ftcPose.bearing);
-                double pitchAngleDegrees = detection.ftcPose.pitch*5.9;
+                yaw1.set(.02*detection.ftcPose.bearing);
+                yaw2.set(.02*detection.ftcPose.bearing);
+                if (detection.ftcPose.pitch > 110 && detection.ftcPose.pitch < 140){
+                    pitchAngleDegrees = detection.ftcPose.pitch*11.25;
+                } else if (detection.ftcPose.pitch > 140){
+                    pitchAngleDegrees = 140;
+                } else if (detection.ftcPose.pitch < 110) {
+                    pitchAngleDegrees = 110;
+                } else {
+                    pitchAngleDegrees = 125;
+                }
                 pitch.set(pitchAngleDegrees);
                 double theta = Math.toRadians(pitchAngleDegrees);
                 double R = detection.ftcPose.range;
@@ -659,10 +678,18 @@ public class Auton_Red extends OpMode {
                 double g = 9.8;
                 double numerator = g * R * R;
                 double denominator = 2 * Math.pow(Math.cos(theta), 2) * (R * Math.tan(theta) - h);
-                double velocity = (Math.sqrt(numerator / denominator))*142.239908137;
-            } else {
-                yaw1.set(follower.getHeading()-(-1*Math.toDegrees(Math.atan2(follower.getPose().getX(), follower.getPose().getY()))));
-                yaw1.set(follower.getHeading()-(-1*Math.toDegrees(Math.atan2(follower.getPose().getX(), follower.getPose().getY()))));
+                velocity = (Math.sqrt(numerator / denominator))*142.239908137;
+                if (follower.getCurrentPathChain() == preload || follower.getCurrentPathChain() == scorePickup1 || follower.getCurrentPathChain() == scorePickup2 || follower.getCurrentPathChain() == scorePickup3) {
+                    launcher.set(velocity);
+                } else {
+                    launcher.set(0);
+                }
+                telemetry.addData("target velocity", velocity);
+                telemetry.addData("current velocity", launcher.getVelocity());
+                telemetry.addData("pitch angle", pitchAngleDegrees);
+            } else if (currentDetections.isEmpty()) {
+                yaw1.set(0);
+                yaw2.set(0);
                 launcher.set(0);
             }
         }   // end for() loop
@@ -681,18 +708,13 @@ public class Auton_Red extends OpMode {
     /** This method is called once at the init of the OpMode. **/
     @Override
     public void init() {
-        launcher = new MotorEx(hardwareMap, "launcher");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
         agigtator = new ServoEx(hardwareMap, "agigtator");
-        pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
-        indexer = new ServoEx(hardwareMap, "indexer", 1, AngleUnit.DEGREES);
+        indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
         yaw1 = new CRServoEx(hardwareMap, "yaw1");
         yaw2 = new CRServoEx(hardwareMap, "yaw2");
-
-        yaw2.setInverted(true);
-
-        yaw1.setPIDF(new PIDFCoefficients(kP, 0.0, 0.1, 0.0001));
-        yaw2.setPIDF(new PIDFCoefficients(kP, 0, 0.1, .0001));
+        pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
+        launcher = new MotorEx(hardwareMap, "launcher");
 
         initAprilTag();
 
@@ -701,9 +723,9 @@ public class Auton_Red extends OpMode {
         intake.setDirection(DcMotorEx.Direction.REVERSE);
         agigtator.setInverted(true);
 
+        launcher.setRunMode(MotorEx.RunMode.VelocityControl);
 
-        launcher.setRunMode(MotorEx.RunMode.RawPower);
-
+        pitch.set(1462.5);
 
         //turns on brake mode
         //brake mode gives motors power in the opposite direction in order to make them stop faster
@@ -773,7 +795,14 @@ public class Auton_Red extends OpMode {
         setPathState(0);
         setShootBall(0);
         setIntakeBall1(0);
-        yaw1.set(Math.toRadians(0));
+        ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
+
+        GainControl gainControl = visionPortal.getCameraControl(GainControl.class);
+        gainControl.setGain(255);
+        if (exposureControl.getMode() != ExposureControl.Mode.Manual) {
+            exposureControl.setMode(ExposureControl.Mode.Manual);
+        }
+        exposureControl.setExposure(6, TimeUnit.MILLISECONDS);
     }
 
     /** We do not use this because everything should automatically disable **/
@@ -781,67 +810,19 @@ public class Auton_Red extends OpMode {
     public void stop() {}
 
     private void initAprilTag() {
-
-        // Create the AprilTag processor.
+        // Create the AprilTag processor by using a builder.
         aprilTag = new AprilTagProcessor.Builder()
-
-                // The following default settings are available to un-comment and edit as needed.
-                //.setDrawAxes(false)
-                //.setDrawCubeProjection(false)
-                //.setDrawTagOutline(true)
-                //.setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
-                //.setTagLibrary(AprilTagGameDatabase.getCenterStageTagLibrary())
-                //.setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
-
-                // == CAMERA CALIBRATION ==
-                // If you do not manually specify calibration parameters, the SDK will attempt
-                // to load a predefined calibration for your camera.
-                //.setLensIntrinsics(578.272, 578.272, 402.145, 221.506)
-                // ... these parameters are fx, fy, cx, cy.
-
+                .setDrawAxes(true)
+                .setDrawCubeProjection(true)
+                .setDrawTagOutline(true)
+                .setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
                 .build();
 
-        // Adjust Image Decimation to trade-off detection-range for detection-rate.
-        // eg: Some typical detection data using a Logitech C920 WebCam
-        // Decimation = 1 ..  Detect 2" Tag from 10 feet away at 10 Frames per second
-        // Decimation = 2 ..  Detect 2" Tag from 6  feet away at 22 Frames per second
-        // Decimation = 3 ..  Detect 2" Tag from 4  feet away at 30 Frames Per Second (default)
-        // Decimation = 3 ..  Detect 5" Tag from 10 feet away at 30 Frames Per Second (default)
-        // Note: Decimation can be changed on-the-fly to adapt during a match.
-        //aprilTag.setDecimation(3);
-
-        // Create the vision portal by using a builder.
-        VisionPortal.Builder builder = new VisionPortal.Builder();
-
-        // Set the camera (webcam vs. built-in RC phone camera).
-        if (USE_WEBCAM) {
-            builder.setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"));
-        } else {
-            builder.setCamera(BuiltinCameraDirection.BACK);
-        }
-
-        // Choose a camera resolution. Not all cameras support all resolutions.
-        //builder.setCameraResolution(new Size(640, 480));
-
-        // Enable the RC preview (LiveView).  Set "false" to omit camera monitoring.
-        //builder.enableLiveView(true);
-
-        // Set the stream format; MJPEG uses less bandwidth than default YUY2.
-        //builder.setStreamFormat(VisionPortal.StreamFormat.YUY2);
-
-        // Choose whether or not LiveView stops if no processors are enabled.
-        // If set "true", monitor shows solid orange screen if no processors enabled.
-        // If set "false", monitor shows camera view without annotations.
-        //builder.setAutoStopLiveView(false);
-
-        // Set and enable the processor.
-        builder.addProcessor(aprilTag);
-
-        // Build the Vision Portal, using the above settings.
-        visionPortal = builder.build();
-
-        // Disable or re-enable the aprilTag processor at any time.
-        //visionPortal.setProcessorEnabled(aprilTag, true);
+        // Create the WEBCAM vision portal by using a builder.
+        visionPortal = new VisionPortal.Builder()
+                .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
+                .addProcessor(aprilTag)
+                .build();
 
     }   // end method initAprilTag()
 }
