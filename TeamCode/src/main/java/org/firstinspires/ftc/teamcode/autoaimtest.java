@@ -2,6 +2,8 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
+import static java.lang.Thread.sleep;
+
 import android.app.Activity;
 import android.view.View;
 
@@ -18,18 +20,25 @@ import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.SwitchableLight;
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
+import com.seattlesolvers.solverslib.hardware.motors.Motor;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
 import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.BuiltinCameraDirection;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.GainControl;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Configurable
 @TeleOp(name = "Turret Aim Test", group = "Testing")
@@ -46,6 +55,7 @@ public class autoaimtest extends OpMode {
     private CRServoEx yaw1 = null;
     private CRServoEx yaw2 = null;
     private MotorEx launcher = null;
+    private double pitchAngleDegrees;
     @Override
     public void init() {
 
@@ -54,9 +64,6 @@ public class autoaimtest extends OpMode {
         yaw2 = new CRServoEx(hardwareMap, "yaw2");
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         launcher = new MotorEx(hardwareMap, "launcher");
-
-
-        yaw1.setInverted(true);
 
         //yaw1.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
         //yaw2.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
@@ -67,7 +74,9 @@ public class autoaimtest extends OpMode {
 
         //sets run mode for motors
 
-        launcher.setRunMode(MotorEx.RunMode.RawPower);
+        launcher.setRunMode(MotorEx.RunMode.VelocityControl );
+
+        pitch.set(1462.5);
 
 
         //turns on brake mode
@@ -88,6 +97,14 @@ public class autoaimtest extends OpMode {
 
     @Override
     public void start() {
+        ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
+
+        GainControl gainControl = visionPortal.getCameraControl(GainControl.class);
+        gainControl.setGain(255);
+        if (exposureControl.getMode() != ExposureControl.Mode.Manual) {
+            exposureControl.setMode(ExposureControl.Mode.Manual);
+        }
+        exposureControl.setExposure(6, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -101,9 +118,17 @@ public class autoaimtest extends OpMode {
         //for red goal
         for (AprilTagDetection detection : currentDetections) {
             if (detection.id == 24 && detection.metadata !=null) {
-                yaw1.set(.05*detection.ftcPose.bearing);
-                yaw2.set(.05*detection.ftcPose.bearing);
-                double pitchAngleDegrees = detection.ftcPose.pitch*5.9;
+                yaw1.set(.02*detection.ftcPose.bearing);
+                yaw2.set(.02*detection.ftcPose.bearing);
+                if (detection.ftcPose.pitch > 110 && detection.ftcPose.pitch < 140){
+                    pitchAngleDegrees = detection.ftcPose.pitch*11.25;
+                } else if (detection.ftcPose.pitch > 140){
+                    pitchAngleDegrees = 140;
+                } else if (detection.ftcPose.pitch < 110) {
+                    pitchAngleDegrees = 110;
+                } else {
+                    pitchAngleDegrees = 125;
+                }
                 pitch.set(pitchAngleDegrees);
                 double theta = Math.toRadians(pitchAngleDegrees);
                 double R = detection.ftcPose.range;
@@ -117,13 +142,15 @@ public class autoaimtest extends OpMode {
                 } else {
                     launcher.set(0);
                 }
+                telemetry.addData("target velocity", velocity);
+                telemetry.addData("current velocity", launcher.getVelocity());
+                telemetry.addData("pitch angle", pitchAngleDegrees);
             } else if (currentDetections.isEmpty()) {
-                yaw1.set(servo_speed);
-                yaw2.set(servo_speed);
+                yaw1.set(0);
+                yaw2.set(0);
                 launcher.set(0);
             }
         }   // end for() loop
-
 
         //makes gamepad vibrate when the launcher is at the minimum velocity
         if (launcher.getVelocity() >= 2300) {
@@ -131,82 +158,23 @@ public class autoaimtest extends OpMode {
         }
     }
 
-    private void initAprilTag() {
-
-        // Create the AprilTag processor.
-        // The following default settings are available to un-comment and edit as needed.
-        //.setDrawAxes(false)
-        //.setDrawCubeProjection(false)
-        //.setDrawTagOutline(true)
-        //.setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
-        //.setTagLibrary(AprilTagGameDatabase.getCenterStageTagLibrary())
-        //.setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
-        // == CAMERA CALIBRATION ==
-        // If you do not manually specify calibration parameters, the SDK will attempt
-        // to load a predefined calibration for your camera.
-        //.setLensIntrinsics(578.272, 578.272, 402.145, 221.506)
-        // ... these parameters are fx, fy, cx, cy.
-        aprilTag = new AprilTagProcessor.Builder()
-
                 // The following default settings are available to un-comment and edit as needed.
-                //.setDrawAxes(false)
-                //.setDrawCubeProjection(false)
-                //.setDrawTagOutline(true)
-                //.setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
-                //.setTagLibrary(AprilTagGameDatabase.getCenterStageTagLibrary())
-                //.setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
 
-                // == CAMERA CALIBRATION ==
-                // If you do not manually specify calibration parameters, the SDK will attempt
-                // to load a predefined calibration for your camera.
-                //.setLensIntrinsics(578.272, 578.272, 402.145, 221.506)
-                // ... these parameters are fx, fy, cx, cy.
+        private void initAprilTag() {
+            // Create the AprilTag processor by using a builder.
+            aprilTag = new AprilTagProcessor.Builder()
+                    .setDrawAxes(true)
+                    .setDrawCubeProjection(true)
+                    .setDrawTagOutline(true)
+                    .setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
+                    .build();
 
-                .build();
-
-        // Adjust Image Decimation to trade-off detection-range for detection-rate.
-        // eg: Some typical detection data using a Logitech C920 WebCam
-        // Decimation = 1 ..  Detect 2" Tag from 10 feet away at 10 Frames per second
-        // Decimation = 2 ..  Detect 2" Tag from 6  feet away at 22 Frames per second
-        // Decimation = 3 ..  Detect 2" Tag from 4  feet away at 30 Frames Per Second (default)
-        // Decimation = 3 ..  Detect 5" Tag from 10 feet away at 30 Frames Per Second (default)
-        // Note: Decimation can be changed on-the-fly to adapt during a match.
-        //aprilTag.setDecimation(3);
-
-        // Create the vision portal by using a builder.
-        VisionPortal.Builder builder = new VisionPortal.Builder();
-
-        // Set the camera (webcam vs. built-in RC phone camera).
-        if (USE_WEBCAM) {
-            builder.setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"));
-        } else {
-            builder.setCamera(BuiltinCameraDirection.BACK);
+            // Create the WEBCAM vision portal by using a builder.
+            visionPortal = new VisionPortal.Builder()
+                    .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
+                    .addProcessor(aprilTag)
+                    .build();
         }
-
-        // Choose a camera resolution. Not all cameras support all resolutions.
-        //builder.setCameraResolution(new Size(640, 480));
-
-        // Enable the RC preview (LiveView).  Set "false" to omit camera monitoring.
-        //builder.enableLiveView(true);
-
-        // Set the stream format; MJPEG uses less bandwidth than default YUY2.
-        //builder.setStreamFormat(VisionPortal.StreamFormat.YUY2);
-
-        // Choose whether or not LiveView stops if no processors are enabled.
-        // If set "true", monitor shows solid orange screen if no processors enabled.
-        // If set "false", monitor shows camera view without annotations.
-        //builder.setAutoStopLiveView(false);
-
-        // Set and enable the processor.
-        builder.addProcessor(aprilTag);
-
-        // Build the Vision Portal, using the above settings.
-        visionPortal = builder.build();
-
-        // Disable or re-enable the aprilTag processor at any time.
-        //visionPortal.setProcessorEnabled(aprilTag, true);
-
-    }   // end method initAprilTag()
 
     private void telemetryAprilTag() {
 
@@ -232,6 +200,8 @@ public class autoaimtest extends OpMode {
         telemetry.addLine("RBE = Range, Bearing & Elevation");
 
     }   // end method telemetryAprilTag()
+
+
 }
 
 
