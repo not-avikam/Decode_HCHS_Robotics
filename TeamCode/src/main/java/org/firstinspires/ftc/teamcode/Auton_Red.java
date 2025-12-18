@@ -169,7 +169,6 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 3:
-                setIntakeBall1(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -200,7 +199,6 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 5:
-                setIntakeBall1(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -231,7 +229,6 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 7:
-                setIntakeBall1(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -260,7 +257,6 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 9:
-                setIntakeBall1(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -588,7 +584,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 3:
-                if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() >= .2) {
+                if ((launcher.getVelocity()) >= (velocity-100) && launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() >= .2) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(4);
@@ -641,6 +637,7 @@ public class Auton_Red extends OpMode {
 
     /** These change the states of the paths and actions. It will also reset the timers of the individual switches **/
     public void setPathState(int pState) {
+        setIntakeBall1(0);
         pathState = pState;
         pathTimer.resetTimer();
 
@@ -735,7 +732,7 @@ public class Auton_Red extends OpMode {
 
         //ensures that all servos start at the correct position
         agigtator.set(0);
-        indexer.set(90);
+        indexer.set(0);
         //sets pidf values for the launcher
         launcher.setVeloCoefficients(.03, .8, .05);
 
