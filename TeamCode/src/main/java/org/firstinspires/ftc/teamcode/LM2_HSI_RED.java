@@ -11,17 +11,21 @@ import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.ftc.FTCCoordinates;
+import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.PedroCoordinates;
 import com.pedropathing.geometry.Pose;
+import com.pedropathing.paths.Path;
 import com.qualcomm.ftccommon.SoundPlayer;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.SwitchableLight;
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
+import com.seattlesolvers.solverslib.hardware.motors.Motor;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
 import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 
@@ -37,6 +41,7 @@ import java.util.List;
 
 @TeleOp(name = "RED Decode LM2", group = "HSI LM2")
 public class LM2_HSI_RED extends OpMode {
+    Path pathToLine;
     private static final boolean USE_WEBCAM = true;  // true for webcam, false for phone camera
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
@@ -54,6 +59,7 @@ public class LM2_HSI_RED extends OpMode {
     private MotorEx launcher = null;
 
     private Follower follower;
+    private double velocity;
     public Pose startingPose = new Pose(0,0, Math.toRadians(0)) ; //See ExampleAuto to understand how to use this
     private TelemetryManager telemetryM;
     private boolean slowMode = false;
@@ -62,17 +68,27 @@ public class LM2_HSI_RED extends OpMode {
     private enum IndexIntake {
         INTAKE_1,
         INTAKE_2,
-        INTAKE_3
+        INTAKE_3,
+        INTAKE_4,
+        INTAKE_5,
+        INTAKE_6
     }
 
     private enum IndexShoot {
         SHOOT_1,
         SHOOT_2,
-        SHOOT_3
+        SHOOT_3,
+        SHOOT_4,
+        SHOOT_5,
+        SHOOT_6
     }
 
     private IndexIntake indexIntake = IndexIntake.INTAKE_1;
     private IndexShoot indexShoot = IndexShoot.SHOOT_1;
+    double[] INTAKE_POS = {0, 130, 270};
+    double[] SHOOT_POS = {170, 240, 300};
+    int i = 0;
+    int s = 0;
     double goalX = 137;
     double goalY = 142;
 
@@ -91,9 +107,6 @@ public class LM2_HSI_RED extends OpMode {
         indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
 
         yaw2.setInverted(true);
-
-        yaw1.setPIDF(new PIDFCoefficients(.1, 0.0, 0.1, 0.0001));
-        yaw2.setPIDF(new PIDFCoefficients(.1, 0, 0.1, 0.0001));
 
         int relativeLayoutId = hardwareMap.appContext.getResources().getIdentifier("RelativeLayout", "id", hardwareMap.appContext.getPackageName());
         relativeLayout = ((Activity) hardwareMap.appContext).findViewById(relativeLayoutId);
@@ -117,7 +130,7 @@ public class LM2_HSI_RED extends OpMode {
         //sets run mode for motors
 
 
-        launcher.setRunMode(MotorEx.RunMode.RawPower);
+        launcher.setRunMode(MotorEx.RunMode.VelocityControl);
 
 
         //turns on brake mode
@@ -183,10 +196,6 @@ public class LM2_HSI_RED extends OpMode {
         telemetryM.debug("position", follower.getPose());
         telemetryM.debug("velocity", follower.getVelocity());
 
-        if (colorSensorIntake instanceof SwitchableLight) {
-            ((SwitchableLight) colorSensorIntake).enableLight(true);
-        }
-
         NormalizedRGBA colorsIntake = colorSensorIntake.getNormalizedColors();
         NormalizedRGBA colorsShoot = colorSensorShoot.getNormalizedColors();
         hueIntake = JavaUtil.colorToHue(colorsIntake.toColor());
@@ -196,10 +205,11 @@ public class LM2_HSI_RED extends OpMode {
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
         telemetry.addData("# AprilTags Detected", currentDetections.size());
 
-
+        boolean foundGoal = false;
 
         for (AprilTagDetection detection : currentDetections) {
             if (detection.id == 24 && detection.metadata !=null) {
+                foundGoal = true;
                 if (gamepad1.b) {
                     yaw1.set(0);
                     yaw2.set(0);
@@ -215,22 +225,34 @@ public class LM2_HSI_RED extends OpMode {
                 double g = 9.8;
                 double numerator = g * R * R;
                 double denominator = 2 * Math.pow(Math.cos(theta), 2) * (R * Math.tan(theta) - h);
-                double velocity = (Math.sqrt(numerator / denominator))*142.239908137;
+                velocity = (Math.sqrt(numerator / denominator))*142.239908137;
                 if (gamepad1.left_trigger != 0) {
                     launcher.set(velocity);
                 } else {
                     launcher.set(0);
                 }
-                //makes gamepad vibrate when the launcher is at the minimum velocity
-                if (launcher.getVelocity() == velocity) {
-                    gamepad1.rumble(1000);
-                }
-            } else {
+            } else if (!foundGoal){
                 yaw1.set(0);
-                yaw1.set(0);
+                yaw2.set(0);
                 launcher.set(0);
             }
         }   // end for() loop
+
+        double closestPoseToLaunchNumber = (follower.getPose().getX() + follower.getPose().getY()) / 2;
+        Pose scorePose = new Pose(closestPoseToLaunchNumber, closestPoseToLaunchNumber, Math.toRadians(follower.getHeading()));
+
+        if (gamepad1.guide) {
+            pathToLine = new Path(new BezierLine(follower.getPose(), scorePose));
+            follower.followPath(pathToLine);
+            launcher.set(velocity);
+        } else {
+            follower.breakFollowing();
+            launcher.set(0);
+        }
+
+        if (gamepad1.x) {
+            intake.setPower(1);
+        }
 
         //sets the position of the agigtator when the right trigger is pressed
         //basically, when right trigger is pressed, the ball shoots out
@@ -248,8 +270,23 @@ public class LM2_HSI_RED extends OpMode {
             telemetry.addLine("EMPTY");
         }
 
+        if (gamepad1.dpadRightWasPressed()) {
+            i += 1;
+            indexer.set(INTAKE_POS[i]);
+        } else if (gamepad1.dpadLeftWasPressed()) {
+            i -= 1;
+            indexer.set(INTAKE_POS[i]);
+        }  else if (gamepad1.dpadUpWasPressed()) {
+            s += 1;
+            indexer.set(SHOOT_POS[s]);
+        } else if (gamepad1.dpadDownWasPressed()) {
+            s -= 1;
+            indexer.set(SHOOT_POS[s]);
+        }
 
 
+
+            /*
         if (gamepad1.dpadRightWasPressed()) {
             switch (indexIntake) {
                 case INTAKE_1:
@@ -267,17 +304,17 @@ public class LM2_HSI_RED extends OpMode {
             }
         } else if (gamepad1.dpadLeftWasPressed()) {
             switch (indexIntake) {
-                case INTAKE_1:
-                    indexIntake = IndexIntake.INTAKE_2;
+                case INTAKE_4:
+                    indexIntake = IndexIntake.INTAKE_5;
                     indexer.set(270);
                     break;
-                case INTAKE_2:
-                    indexIntake = IndexIntake.INTAKE_3;
+                case INTAKE_5:
+                    indexIntake = IndexIntake.INTAKE_6;
                     indexer.set(130);
                     break;
-                case INTAKE_3:
+                case INTAKE_6:
                     indexer.set(0);
-                    indexIntake = IndexIntake.INTAKE_1;
+                    indexIntake = IndexIntake.INTAKE_4;
                     break;
             }
         }
@@ -299,21 +336,24 @@ public class LM2_HSI_RED extends OpMode {
             }
         } else if (gamepad1.dpadDownWasPressed()) {
             switch (indexShoot) {
-                case SHOOT_1:
-                    indexShoot = IndexShoot.SHOOT_2;
+                case SHOOT_4:
+                    indexShoot = IndexShoot.SHOOT_5;
                     indexer.set(300);
                     break;
-                case SHOOT_2:
-                    indexShoot = IndexShoot.SHOOT_3;
+                case SHOOT_5:
+                    indexShoot = IndexShoot.SHOOT_6;
                     indexer.set(240);
                     break;
-                case SHOOT_3:
-                    indexShoot = IndexShoot.SHOOT_1;
+                case SHOOT_6:
+                    indexShoot = IndexShoot.SHOOT_4;
                     indexer.set(170);
                     break;
             }
-        }
+
+             */
+
     }
+
 
     private void initAprilTag() {
 
