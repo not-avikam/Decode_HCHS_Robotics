@@ -13,6 +13,7 @@ import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.PedroCoordinates;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.Path;
+import com.pedropathing.util.Timer;
 import com.qualcomm.ftccommon.SoundPlayer;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -53,6 +54,8 @@ public class LM2_HSI_RED extends OpMode {
     private TelemetryManager telemetryM;
     private boolean slowMode = false;
     private double slowModeMultiplier = 0.5;
+    private int shootBall;
+    private Timer actionTimer, shootTimer;
     private boolean greenFound, purpleFound, gongFound;      // Sound file present flags
     private enum IndexIntake {
         INTAKE_1,
@@ -255,6 +258,13 @@ public class LM2_HSI_RED extends OpMode {
 
                 if (gamepad1.left_trigger != 0) {
                     launcher.set(velocity);
+                } else if (gamepad1.rightBumperWasPressed()) {
+                    setShootBall(0);
+                    launcher.set(velocity);
+                    shoot();
+                } else if (gamepad1.rightBumperWasReleased()) {
+                    setShootBall(9);
+                    launcher.set(0);
                 } else {
                     launcher.set(0);
                 }
@@ -393,6 +403,8 @@ public class LM2_HSI_RED extends OpMode {
 
              */
 
+
+
     }
 
 
@@ -472,6 +484,84 @@ public class LM2_HSI_RED extends OpMode {
         //visionPortal.setProcessorEnabled(aprilTag, true);
 
     }   // end method initAprilTag()
+
+    public void setShootBall(int sBall) {
+        shootBall = sBall;
+        shootTimer.resetTimer();
+    }
+
+    public void shoot() {
+
+        switch (shootBall) {
+            case 0:
+                indexer.set(300);
+                if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100)) {
+                    agigtator.set(.3);
+                    actionTimer.resetTimer();
+                    setShootBall(1);
+                }
+                break;
+            case 1:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    agigtator.set(0);
+                    actionTimer.resetTimer();
+                    setShootBall(2);
+                }
+                break;
+            case 2:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    indexer.set(240);
+                    actionTimer.resetTimer();
+                    setShootBall(3);
+                }
+                break;
+            case 3:
+                if ((launcher.getVelocity()) >= (velocity-100) && launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() >= .2) {
+                    agigtator.set(.3);
+                    actionTimer.resetTimer();
+                    setShootBall(4);
+                }
+                break;
+            case 4:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    agigtator.set(0);
+                    actionTimer.resetTimer();
+                    setShootBall(5);
+                }
+                break;
+            case 5:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    indexer.set(170);
+                    actionTimer.resetTimer();
+                    setShootBall(6);
+                }
+                break;
+            case 6:
+                if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() > .2) {
+                    agigtator.set(.3);
+                    actionTimer.resetTimer();
+                    setShootBall(7);
+                }
+                break;
+            case 7:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    agigtator.set(0);
+                    actionTimer.resetTimer();
+                    setShootBall(8);
+                }
+                break;
+            case 8:
+                launcher.setVelocity(0);
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    indexer.set(0);
+                    actionTimer.resetTimer();
+                    setShootBall(9);
+                }
+                break;
+        }
+
+    }
+
 }
 
 
