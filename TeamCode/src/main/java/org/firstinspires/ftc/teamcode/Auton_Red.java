@@ -72,7 +72,7 @@ public class Auton_Red extends OpMode {
     private final Pose pickup3Posectrl = new Pose(90, 32);
     private final Pose scorePose4 = new Pose(80, 16, Math.toRadians(67));
     private final Pose human = new Pose (134,42, Math.toRadians(90));
-    double velocity;
+    double velocity = 10000;
     private double kP = .01;
     private double pitchAngleDegrees;
 
@@ -146,7 +146,6 @@ public class Auton_Red extends OpMode {
                 setPathState(1);
                 break;
             case 1:
-                setShootBall(0);
                 shoot();
                 if (shootBall >= 6) {
                     setPathState(2);
@@ -187,10 +186,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 4:
-                setShootBall(0);
-                /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the scorePose's position */
                 if(!follower.isBusy()) {
-                    /* Score Sample */
                     shoot();
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
                     if (shootBall >= 6){
@@ -218,8 +214,6 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 6:
-                setShootBall(0);
-                /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the scorePose's position */
                 if(!follower.isBusy()) {
                     /* Score Sample */
                     shoot();
@@ -239,7 +233,6 @@ public class Auton_Red extends OpMode {
                 } else if (detected_obelisk == GPP_TAG_ID) {
                     intakeGPP();
                 }
-                /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the pickup3Pose's position */
                 if(!follower.isBusy()) {
                     /* Grab Sample */
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are scoring the sample */
@@ -605,7 +598,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 6:
-                if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() > .2) {
+                if ((launcher.getVelocity()) >= (velocity-100) && launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() > .2) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(7);
@@ -637,7 +630,7 @@ public class Auton_Red extends OpMode {
 
     /** These change the states of the paths and actions. It will also reset the timers of the individual switches **/
     public void setPathState(int pState) {
-        setIntakeBall1(0);
+        setShootBall(0);
         pathState = pState;
         pathTimer.resetTimer();
 
