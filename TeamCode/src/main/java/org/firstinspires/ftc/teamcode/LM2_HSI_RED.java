@@ -2,8 +2,6 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
-import static org.firstinspires.ftc.teamcode.pedroPathing.Tuning.follower;
-
 import android.app.Activity;
 import android.view.View;
 
@@ -19,13 +17,9 @@ import com.qualcomm.ftccommon.SoundPlayer;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
-import com.qualcomm.robotcore.hardware.PIDFCoefficients;
-import com.qualcomm.robotcore.hardware.SwitchableLight;
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
-import com.seattlesolvers.solverslib.hardware.motors.Motor;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
 import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 
@@ -47,14 +41,9 @@ public class LM2_HSI_RED extends OpMode {
     private VisionPortal visionPortal;
     double hueIntake, hueShoot;
     View relativeLayout;
-    NormalizedColorSensor colorSensorIntake;
-    NormalizedColorSensor colorSensorShoot;
-    private ServoEx pitch = null;
-    private CRServoEx yaw1 = null;
-    private CRServoEx yaw2 = null;
-    private ServoEx agigtator = null;
-    private ServoEx indexer = null;
-
+    NormalizedColorSensor colorSensorIntake, colorSensorShoot;
+    private ServoEx pitch, agigtator, indexer = null;
+    private CRServoEx yaw1, yaw2 = null;
     private DcMotorEx intake = null;
     private MotorEx launcher = null;
 
@@ -64,7 +53,7 @@ public class LM2_HSI_RED extends OpMode {
     private TelemetryManager telemetryM;
     private boolean slowMode = false;
     private double slowModeMultiplier = 0.5;
-
+    private boolean greenFound, purpleFound, gongFound;      // Sound file present flags
     private enum IndexIntake {
         INTAKE_1,
         INTAKE_2,
@@ -89,6 +78,9 @@ public class LM2_HSI_RED extends OpMode {
     double[] SHOOT_POS = {170, 240, 300};
     int i = 0;
     int s = 0;
+    int purpleSoundID;
+    int greenSoundID;
+    int gongID;
     double goalX = 137;
     double goalY = 142;
 
@@ -145,6 +137,33 @@ public class LM2_HSI_RED extends OpMode {
 
         //sets pidf values for the launcher
         launcher.setVeloCoefficients(.03, .8, .05);
+/*
+                *     Android Studio coders will ultimately need a folder in your path as follows:
+                *       <project root>/TeamCode/src/main/res/raw
+                *
+                *     Copy any .wav files you want to play into this folder.
+                *     Make sure that your files ONLY use lower-case characters, and have no spaces or special characters other than underscore.
+ */
+        // Determine Resource IDs for sounds built into the RC application.
+        purpleSoundID = hardwareMap.appContext.getResources().getIdentifier("purple", "raw", hardwareMap.appContext.getPackageName());
+        greenSoundID = hardwareMap.appContext.getResources().getIdentifier("green",   "raw", hardwareMap.appContext.getPackageName());
+        gongID = hardwareMap.appContext.getResources().getIdentifier("velocity", "raw", hardwareMap.appContext.getPackageName());
+
+        // Determine if sound resources are found.
+        // Note: Preloading is NOT required, but it's a good way to verify all your sounds are available before you run.
+        if (greenSoundID != 0)
+            greenFound   = SoundPlayer.getInstance().preload(hardwareMap.appContext, greenSoundID);
+
+        if (purpleSoundID != 0)
+            purpleFound = SoundPlayer.getInstance().preload(hardwareMap.appContext, purpleSoundID);
+
+        if (gongID != 0)
+            gongFound = SoundPlayer.getInstance().preload(hardwareMap.appContext, gongID);
+
+        // Display sound status
+        telemetry.addData("green resource",   greenFound ?   "Found" : "NOT found\n Add green.wav to /src/main/res/raw" );
+        telemetry.addData("purple resource", purpleFound ? "Found" : "Not found\n Add purple.wav to /src/main/res/raw" );
+        telemetry.addData("gong resource", gongFound ? "Found": "Not found\n Add gong.wav to /src/main/res/raw");
 
         //adds status of initialization to telemetry
         telemetry.addData("Status", "Initialized");
@@ -208,34 +227,45 @@ public class LM2_HSI_RED extends OpMode {
         boolean foundGoal = false;
 
         for (AprilTagDetection detection : currentDetections) {
+
             if (detection.id == 24 && detection.metadata !=null) {
-                foundGoal = true;
-                if (gamepad1.b) {
-                    yaw1.set(0);
-                    yaw2.set(0);
-                    follower.setPose(new Pose(detection.robotPose.getPosition().x, detection.robotPose.getPosition().y, follower.getHeading(), FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE));
-                }
-                yaw1.set(.05*detection.ftcPose.bearing);
-                yaw2.set(.05*detection.ftcPose.bearing);
+
                 double pitchAngleDegrees = detection.ftcPose.pitch*5.9;
-                pitch.set(pitchAngleDegrees);
                 double theta = Math.toRadians(pitchAngleDegrees);
                 double R = detection.ftcPose.range;
                 double h = detection.ftcPose.elevation;
                 double g = 9.8;
                 double numerator = g * R * R;
                 double denominator = 2 * Math.pow(Math.cos(theta), 2) * (R * Math.tan(theta) - h);
+
+                foundGoal = true;
+
+                if (gamepad1.b) {
+                    yaw1.set(0);
+                    yaw2.set(0);
+                    follower.setPose(new Pose(detection.robotPose.getPosition().x, detection.robotPose.getPosition().y, follower.getHeading(), FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE));
+                }
+
+                yaw1.set(.05*detection.ftcPose.bearing);
+                yaw2.set(.05*detection.ftcPose.bearing);
+
+                pitch.set(pitchAngleDegrees);
+
                 velocity = (Math.sqrt(numerator / denominator))*142.239908137;
+
                 if (gamepad1.left_trigger != 0) {
                     launcher.set(velocity);
                 } else {
                     launcher.set(0);
                 }
+
+
             } else if (!foundGoal){
                 yaw1.set(0);
                 yaw2.set(0);
-                launcher.set(0);
             }
+
+
         }   // end for() loop
 
         double closestPoseToLaunchNumber = (follower.getPose().getX() + follower.getPose().getY()) / 2;
@@ -247,7 +277,6 @@ public class LM2_HSI_RED extends OpMode {
             launcher.set(velocity);
         } else {
             follower.breakFollowing();
-            launcher.set(0);
         }
 
         if (gamepad1.x) {
@@ -262,12 +291,24 @@ public class LM2_HSI_RED extends OpMode {
             agigtator.set(0);
         }
 
+        if (launcher.getVelocity() >= velocity-100 && launcher.getVelocity() <= velocity+100) {
+            SoundPlayer.getInstance().stopPlayingLoops();
+            SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, gongID);
+        } else {
+            SoundPlayer.getInstance().stopPlayingLoops();
+        }
+
         if (hueShoot >90 && hueShoot <225) {
+            SoundPlayer.getInstance().stopPlayingLoops();
             telemetry.addLine("GREEN");
+            SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, greenSoundID);
         } else if (hueShoot >225 && hueShoot <350) {
+            SoundPlayer.getInstance().stopPlayingLoops();
             telemetry.addLine("PURPLE");
+            SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, purpleSoundID);
         } else {
             telemetry.addLine("EMPTY");
+            SoundPlayer.getInstance().stopPlayingLoops();
         }
 
         if (gamepad1.dpadRightWasPressed()) {
