@@ -169,6 +169,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 3:
+                setIntakeBall1(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -199,6 +200,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 5:
+                setIntakeBall2(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -229,6 +231,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 7:
+                setIntakeBall3(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -281,7 +284,6 @@ public class Auton_Red extends OpMode {
 
         switch (intakeBall1) {
             case 0:
-                intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(130);
                     setIntakeBall1(1);
@@ -293,22 +295,23 @@ public class Auton_Red extends OpMode {
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(270);
-                    intake.setPower(0);
                     setIntakeBall1(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(270);
-                    intake.setPower(0);
                     setIntakeBall1(2);
                 }
                 break;
             case 2:
-                setIntakeBall2(0);
+                if (hue > 225 && hue < 350){
+                    setIntakeBall1(3);
+                } else if (hue > 90 && hue < 150) {
+                    setIntakeBall1(3);
+                }
                 break;
         }
 
         switch (intakeBall2) {
             case 0:
-                intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(270);
                     setIntakeBall2(1);
@@ -320,23 +323,24 @@ public class Auton_Red extends OpMode {
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(130);
-                    intake.setPower(0);
                     setIntakeBall2(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(130);
-                    intake.setPower(0);
                     setIntakeBall2(2);
                 }
                 break;
             case 2:
-                setIntakeBall3(0);
+                if (hue > 225 && hue < 350){
+                    setIntakeBall2(3);
+                } else if (hue > 90 && hue < 150) {
+                    setIntakeBall2(3);
+                }
                 break;
         }
 
         switch (intakeBall3) {
             case 0:
                 indexer.set(270);
-                intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(0);
                     setIntakeBall3(1);
@@ -348,16 +352,18 @@ public class Auton_Red extends OpMode {
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(130);
-                    intake.setPower(0);
                     setIntakeBall3(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(130);
-                    intake.setPower(0);
                     setIntakeBall3(2);
                 }
                 break;
             case 2:
-                setIntakeBall3(3);
+                if (hue > 225 && hue < 350){
+                    setIntakeBall3(3);
+                } else if (hue > 90 && hue < 150) {
+                    setIntakeBall3(3);
+                }
                 break;
         }
 
@@ -373,7 +379,6 @@ public class Auton_Red extends OpMode {
         switch (intakeBall1) {
             case 0:
                 indexer.set(130);
-                intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(270);
                     setIntakeBall1(1);
@@ -385,23 +390,24 @@ public class Auton_Red extends OpMode {
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(0);
-                    intake.setPower(0);
                     setIntakeBall1(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(0);
-                    intake.setPower(0);
                     setIntakeBall1(2);
                 }
                 break;
             case 2:
-                setIntakeBall2(0);
+                if (hue > 225 && hue < 350){
+                    setIntakeBall1(3);
+                } else if (hue > 90 && hue < 150) {
+                    setIntakeBall1(3);
+                }
                 break;
         }
 
         switch (intakeBall2) {
             case 0:
                 indexer.set(130);
-                intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(0);
                     setIntakeBall2(1);
@@ -413,22 +419,23 @@ public class Auton_Red extends OpMode {
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(270);
-                    intake.setPower(0);
                     setIntakeBall2(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(270);
-                    intake.setPower(0);
                     setIntakeBall2(2);
                 }
                 break;
             case 2:
-                setIntakeBall3(0);
+                if (hue > 225 && hue < 350){
+                    setIntakeBall2(3);
+                } else if (hue > 90 && hue < 150) {
+                    setIntakeBall2(3);
+                }
                 break;
         }
 
         switch (intakeBall3) {
             case 0:
-                intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(130);
                     setIntakeBall3(1);
@@ -440,16 +447,18 @@ public class Auton_Red extends OpMode {
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(270);
-                    intake.setPower(0);
                     setIntakeBall3(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(270);
-                    intake.setPower(0);
                     setIntakeBall3(2);
                 }
                 break;
             case 2:
-                setIntakeBall3(3);
+                if (hue > 225 && hue < 350){
+                    setIntakeBall3(3);
+                } else if (hue > 90 && hue < 150) {
+                    setIntakeBall3(3);
+                }
                 break;
         }
 
@@ -464,7 +473,6 @@ public class Auton_Red extends OpMode {
 
         switch (intakeBall1) {
             case 0:
-                intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(270);
                     setIntakeBall1(1);
@@ -476,22 +484,19 @@ public class Auton_Red extends OpMode {
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(130);
-                    intake.setPower(0);
                     setIntakeBall1(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(130);
-                    intake.setPower(0);
                     setIntakeBall1(2);
                 }
                 break;
             case 2:
-                setIntakeBall2(0);
+                setIntakeBall1(3);
                 break;
         }
 
         switch (intakeBall2) {
             case 0:
-                intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(130);
                     setIntakeBall2(1);
@@ -503,23 +508,20 @@ public class Auton_Red extends OpMode {
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(270);
-                    intake.setPower(0);
                     setIntakeBall2(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(270);
-                    intake.setPower(0);
                     setIntakeBall2(2);
                 }
                 break;
             case 2:
-                setIntakeBall3(0);
+                setIntakeBall2(3);
                 break;
         }
 
         switch (intakeBall3) {
             case 0:
                 indexer.set(130);
-                intake.setPower(1);
                 if (hue > 225 && hue < 350){
                     indexer.set(0);
                     setIntakeBall3(1);
@@ -531,11 +533,9 @@ public class Auton_Red extends OpMode {
             case 1:
                 if (hue > 225 && hue < 350){
                     indexer.set(270);
-                    intake.setPower(0);
                     setIntakeBall3(2);
                 } else if (hue > 90 && hue < 150) {
                     indexer.set(270);
-                    intake.setPower(0);
                     setIntakeBall3(2);
                 }
                 break;
@@ -690,6 +690,12 @@ public class Auton_Red extends OpMode {
                 launcher.set(0);
             }
         }   // end for() loop
+
+        if (follower.getCurrentPathChain() == grabPickup1 || follower.getCurrentPathChain() == grabPickup2 || follower.getCurrentPathChain() == grabPickup3) {
+            intake.setPower(1);
+        } else {
+            intake.setPower(0);
+        }
 
         // These loop the movements of the robot, these must be called continuously in order to work
         follower.update();
