@@ -18,6 +18,7 @@ import com.qualcomm.ftccommon.SoundPlayer;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
@@ -81,11 +82,10 @@ public class LM2_HSI_RED extends OpMode {
     double[] SHOOT_POS = {170, 240, 300};
     int i = 0;
     int s = 0;
-    int purpleSoundID;
-    int greenSoundID;
-    int gongID;
     double goalX = 137;
     double goalY = 142;
+
+    double pitchAngleDegrees;
 
     @Override
     public void init() {
@@ -122,8 +122,8 @@ public class LM2_HSI_RED extends OpMode {
 
         initAprilTag();
 
-        //sets run mode for motors
-
+        actionTimer = new Timer();
+        shootTimer = new Timer();
 
         launcher.setRunMode(MotorEx.RunMode.VelocityControl);
 
@@ -136,39 +136,13 @@ public class LM2_HSI_RED extends OpMode {
 
         //ensures that all servos start at the correct position
         agigtator.set(0);
-        indexer.set(90);
+        indexer.set(0);
+        pitch.set(1462.5);
+
 
         //sets pidf values for the launcher
         launcher.setVeloCoefficients(.03, .8, .05);
-/*
-                *     Android Studio coders will ultimately need a folder in your path as follows:
-                *       <project root>/TeamCode/src/main/res/raw
-                *
-                *     Copy any .wav files you want to play into this folder.
-                *     Make sure that your files ONLY use lower-case characters, and have no spaces or special characters other than underscore.
- */
-        // Determine Resource IDs for sounds built into the RC application.
-        purpleSoundID = hardwareMap.appContext.getResources().getIdentifier("purple", "raw", hardwareMap.appContext.getPackageName());
-        greenSoundID = hardwareMap.appContext.getResources().getIdentifier("green",   "raw", hardwareMap.appContext.getPackageName());
-        gongID = hardwareMap.appContext.getResources().getIdentifier("velocity", "raw", hardwareMap.appContext.getPackageName());
 
-        // Determine if sound resources are found.
-        // Note: Preloading is NOT required, but it's a good way to verify all your sounds are available before you run.
-        if (greenSoundID != 0)
-            greenFound   = SoundPlayer.getInstance().preload(hardwareMap.appContext, greenSoundID);
-
-        if (purpleSoundID != 0)
-            purpleFound = SoundPlayer.getInstance().preload(hardwareMap.appContext, purpleSoundID);
-
-        if (gongID != 0)
-            gongFound = SoundPlayer.getInstance().preload(hardwareMap.appContext, gongID);
-
-        // Display sound status
-        telemetry.addData("green resource",   greenFound ?   "Found" : "NOT found\n Add green.wav to /src/main/res/raw" );
-        telemetry.addData("purple resource", purpleFound ? "Found" : "Not found\n Add purple.wav to /src/main/res/raw" );
-        telemetry.addData("gong resource", gongFound ? "Found": "Not found\n Add gong.wav to /src/main/res/raw");
-
-        //adds status of initialization to telemetry
         telemetry.addData("Status", "Initialized");
     }
 
@@ -190,7 +164,7 @@ public class LM2_HSI_RED extends OpMode {
         telemetryM.update();
 
         //slow mode turns on when a is pressed
-        //turns back off when a is released
+        //turns back off when a is released;
         //works by multiplying the speed of the robot by .5
         if (gamepad1.aWasPressed()) {
             slowMode = true;
@@ -227,67 +201,47 @@ public class LM2_HSI_RED extends OpMode {
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
         telemetry.addData("# AprilTags Detected", currentDetections.size());
 
-        boolean foundGoal = false;
-
         for (AprilTagDetection detection : currentDetections) {
-
             if (detection.id == 24 && detection.metadata !=null) {
 
-                double pitchAngleDegrees = detection.ftcPose.pitch*5.9;
+                yaw1.set(.02*detection.ftcPose.bearing);
+                yaw2.set(.02*detection.ftcPose.bearing);
+
+                if (detection.ftcPose.pitch > 110 && detection.ftcPose.pitch < 140) {
+                    pitchAngleDegrees = detection.ftcPose.pitch*11.25;
+                } else if (detection.ftcPose.pitch > 140){
+                    pitchAngleDegrees = 140;
+                } else if (detection.ftcPose.pitch < 110) {
+                    pitchAngleDegrees = 110;
+                } else {
+                    pitchAngleDegrees = 125;
+                }
+
+                pitch.set(pitchAngleDegrees);
+
                 double theta = Math.toRadians(pitchAngleDegrees);
                 double R = detection.ftcPose.range;
                 double h = detection.ftcPose.elevation;
                 double g = 9.8;
                 double numerator = g * R * R;
                 double denominator = 2 * Math.pow(Math.cos(theta), 2) * (R * Math.tan(theta) - h);
-
-                foundGoal = true;
-
-                if (gamepad1.b) {
-                    yaw1.set(0);
-                    yaw2.set(0);
-                    follower.setPose(new Pose(detection.robotPose.getPosition().x, detection.robotPose.getPosition().y, follower.getHeading(), FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE));
-                }
-
-                yaw1.set(.05*detection.ftcPose.bearing);
-                yaw2.set(.05*detection.ftcPose.bearing);
-
-                pitch.set(pitchAngleDegrees);
-
                 velocity = (Math.sqrt(numerator / denominator))*142.239908137;
 
                 if (gamepad1.left_trigger != 0) {
                     launcher.set(velocity);
-                } else if (gamepad1.rightBumperWasPressed()) {
-                    setShootBall(0);
-                    launcher.set(velocity);
-                    shoot();
-                } else if (gamepad1.rightBumperWasReleased()) {
-                    setShootBall(9);
-                    launcher.set(0);
                 } else {
                     launcher.set(0);
                 }
 
+                telemetry.addData("target velocity", velocity);
+                telemetry.addData("current velocity", launcher.getVelocity());
+                telemetry.addData("pitch angle", pitchAngleDegrees);
 
-            } else if (!foundGoal){
+            } else {
                 yaw1.set(0);
                 yaw2.set(0);
             }
-
-
         }   // end for() loop
-
-        double closestPoseToLaunchNumber = (follower.getPose().getX() + follower.getPose().getY()) / 2;
-        Pose scorePose = new Pose(closestPoseToLaunchNumber, closestPoseToLaunchNumber, Math.toRadians(follower.getHeading()));
-
-        if (gamepad1.guide) {
-            pathToLine = new Path(new BezierLine(follower.getPose(), scorePose));
-            follower.followPath(pathToLine);
-            launcher.set(velocity);
-        } else {
-            follower.breakFollowing();
-        }
 
         if (gamepad1.x) {
             intake.setPower(1);
@@ -301,40 +255,32 @@ public class LM2_HSI_RED extends OpMode {
             agigtator.set(0);
         }
 
-        if (launcher.getVelocity() >= velocity-100 && launcher.getVelocity() <= velocity+100) {
-            SoundPlayer.getInstance().stopPlayingLoops();
-            SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, gongID);
-        } else {
-            SoundPlayer.getInstance().stopPlayingLoops();
-        }
-
-        if (hueShoot >90 && hueShoot <225) {
-            SoundPlayer.getInstance().stopPlayingLoops();
-            telemetry.addLine("GREEN");
-            SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, greenSoundID);
-        } else if (hueShoot >225 && hueShoot <350) {
-            SoundPlayer.getInstance().stopPlayingLoops();
-            telemetry.addLine("PURPLE");
-            SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, purpleSoundID);
-        } else {
-            telemetry.addLine("EMPTY");
-            SoundPlayer.getInstance().stopPlayingLoops();
-        }
-
         if (gamepad1.dpadRightWasPressed()) {
-            i += 1;
+            if (i < INTAKE_POS.length - 1) {
+                i++;
+            }
             indexer.set(INTAKE_POS[i]);
-        } else if (gamepad1.dpadLeftWasPressed()) {
-            i -= 1;
+        }
+        else if (gamepad1.dpadLeftWasPressed()) {
+            if (i > 0) {
+                i--;
+            }
             indexer.set(INTAKE_POS[i]);
-        }  else if (gamepad1.dpadUpWasPressed()) {
-            s += 1;
-            indexer.set(SHOOT_POS[s]);
-        } else if (gamepad1.dpadDownWasPressed()) {
-            s -= 1;
-            indexer.set(SHOOT_POS[s]);
         }
 
+
+        if (gamepad1.dpadUpWasPressed()) {
+            if (s < SHOOT_POS.length - 1) {
+                s++;
+            }
+            indexer.set(SHOOT_POS[s]);
+        }
+        else if (gamepad1.dpadDownWasPressed()) {
+            if (s > 0) {
+                s--;
+            }
+            indexer.set(SHOOT_POS[s]);
+        }
 
 
             /*
@@ -484,83 +430,6 @@ public class LM2_HSI_RED extends OpMode {
         //visionPortal.setProcessorEnabled(aprilTag, true);
 
     }   // end method initAprilTag()
-
-    public void setShootBall(int sBall) {
-        shootBall = sBall;
-        shootTimer.resetTimer();
-    }
-
-    public void shoot() {
-
-        switch (shootBall) {
-            case 0:
-                indexer.set(300);
-                if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100)) {
-                    agigtator.set(.3);
-                    actionTimer.resetTimer();
-                    setShootBall(1);
-                }
-                break;
-            case 1:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(0);
-                    actionTimer.resetTimer();
-                    setShootBall(2);
-                }
-                break;
-            case 2:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    indexer.set(240);
-                    actionTimer.resetTimer();
-                    setShootBall(3);
-                }
-                break;
-            case 3:
-                if ((launcher.getVelocity()) >= (velocity-100) && launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() >= .2) {
-                    agigtator.set(.3);
-                    actionTimer.resetTimer();
-                    setShootBall(4);
-                }
-                break;
-            case 4:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(0);
-                    actionTimer.resetTimer();
-                    setShootBall(5);
-                }
-                break;
-            case 5:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    indexer.set(170);
-                    actionTimer.resetTimer();
-                    setShootBall(6);
-                }
-                break;
-            case 6:
-                if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(.3);
-                    actionTimer.resetTimer();
-                    setShootBall(7);
-                }
-                break;
-            case 7:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(0);
-                    actionTimer.resetTimer();
-                    setShootBall(8);
-                }
-                break;
-            case 8:
-                launcher.setVelocity(0);
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    indexer.set(0);
-                    actionTimer.resetTimer();
-                    setShootBall(9);
-                }
-                break;
-        }
-
-    }
 
 }
 
