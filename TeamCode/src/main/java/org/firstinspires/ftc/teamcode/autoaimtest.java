@@ -74,7 +74,7 @@ public class autoaimtest extends OpMode {
 
         //sets run mode for motors
 
-        launcher.setRunMode(MotorEx.RunMode.VelocityControl );
+        launcher.setRunMode(MotorEx.RunMode.VelocityControl);
 
         pitch.set(1462.5);
 
