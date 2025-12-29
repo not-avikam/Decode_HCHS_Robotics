@@ -67,6 +67,7 @@ public class launcher_velocity_calculator extends OpMode {
 
     int i = 0;
     int s = 0;
+    int currentAlliance = 0;
 
     double velocityIPS = 0;
     double velocityTPS = 0;
@@ -75,6 +76,10 @@ public class launcher_velocity_calculator extends OpMode {
     private Pose startingPose;
     private TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
     private boolean slowMode = false;
+    private boolean greenFound, purpleFound, gongFound;
+    int purpleSoundID;
+    int greenSoundID;
+    int gongID;
     private double slowModeMultiplier = 0.5;
     @Override
     public void init() {
@@ -101,6 +106,42 @@ public class launcher_velocity_calculator extends OpMode {
 
         startingPose = new Pose(0,0, Math.toRadians(0));
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
+
+        purpleSoundID = hardwareMap.appContext.getResources().getIdentifier("purple", "raw", hardwareMap.appContext.getPackageName());
+        greenSoundID = hardwareMap.appContext.getResources().getIdentifier("green",   "raw", hardwareMap.appContext.getPackageName());
+        gongID = hardwareMap.appContext.getResources().getIdentifier("velocity", "raw", hardwareMap.appContext.getPackageName());
+
+        // Determine if sound resources are found.
+        // Note: Preloading is NOT required, but it's a good way to verify all your sounds are available before you run.
+        if (greenSoundID != 0)
+            greenFound   = SoundPlayer.getInstance().preload(hardwareMap.appContext, greenSoundID);
+
+        if (purpleSoundID != 0)
+            purpleFound = SoundPlayer.getInstance().preload(hardwareMap.appContext, purpleSoundID);
+
+        if (gongID != 0)
+            gongFound = SoundPlayer.getInstance().preload(hardwareMap.appContext, gongID);
+
+        // Display sound status
+        telemetry.addData("green resource",   greenFound ?   "Found" : "NOT found\n Add green.wav to /src/main/res/raw" );
+        telemetry.addData("purple resource", purpleFound ? "Found" : "NOT found\n Add purple.wav to /src/main/res/raw" );
+        telemetry.addData("gong resource", gongFound ? "Found": "NOT found\n Add gong.wav to /src/main/res/raw");
+
+        telemetry.addData("Status", "Initialized");
+    }
+
+    @Override
+    public void init_loop() {
+
+        telemetry.addLine("Press right for red alliance");
+        telemetry.addLine("Press left for blue alliance");
+
+        if (gamepad1.dpadRightWasPressed()) {
+            currentAlliance = 0;
+        } else if (gamepad1.dpadLeftWasPressed()) {
+            currentAlliance = 1;
+        }
+
     }
 
     @Override
@@ -126,28 +167,42 @@ public class launcher_velocity_calculator extends OpMode {
         telemetryM.update();
 
         AprilTagDetection tag24 = null;
+        AprilTagDetection tag20 = null;
 
         for (AprilTagDetection detection : aprilTag.getDetections()) {
-            if (detection.id == 24 && detection.metadata != null) {
+            if (detection.id == 24 && detection.metadata != null && currentAlliance == 0) {
                 tag24 = detection;
                 break; // lock onto ONLY tag 24
             }
+
+            if (detection.id == 20 && detection.metadata != null && currentAlliance == 1) {
+                tag20 = detection;
+                break;
+            }
+
         }
 
-        if (tag24 != null) {
+        if (tag24 != null && currentAlliance == 0) {
             double bearing = tag24.ftcPose.bearing;
 
             yaw1.set(0.02 * bearing);
             yaw2.set(0.02 * bearing);
 
             distanceToTarget = tag24.ftcPose.range;
+        } else if (tag20 != null && currentAlliance == 1) {
+            double bearing = tag20.ftcPose.bearing;
+
+            yaw1.set(0.02 * bearing);
+            yaw2.set(0.02 * bearing);
+
+            distanceToTarget = tag20.ftcPose.range;
         } else {
             yaw1.set(0);
             yaw2.set(0);
         }
 
 
-        if (gamepad1.xWasPressed()) {
+        if (gamepad1.bWasPressed()) {
             slowMode = !slowMode;
         }
 
@@ -196,6 +251,12 @@ public class launcher_velocity_calculator extends OpMode {
             launcher.setVelocity(0);
         }
 
+        if (launcher.getVelocity() >= (velocityTPS -100) && launcher.getVelocity() <= (velocityTPS +100)) {
+            SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, gongID);
+        } else {
+            SoundPlayer.getInstance().stopPlayingLoops();
+        }
+
         // Agitator
         if (gamepad1.right_trigger != 0) {
             agigtator.setPosition(0);
@@ -239,17 +300,16 @@ public class launcher_velocity_calculator extends OpMode {
         hueShoot = JavaUtil.colorToHue(colorsShoot.toColor());
 
         if (hueShoot >90 && hueShoot <225) {
-            //SoundPlayer.getInstance().stopPlayingLoops();
+            SoundPlayer.getInstance().stopPlayingLoops();
             telemetry.addLine("GREEN");
-
-            //SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, greenSoundID);
+            SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, greenSoundID);
         } else if (hueShoot >225 && hueShoot <350) {
-            //SoundPlayer.getInstance().stopPlayingLoops();
+            SoundPlayer.getInstance().stopPlayingLoops();
             telemetry.addLine("PURPLE");
-            //SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, purpleSoundID);
+            SoundPlayer.getInstance().startPlaying(hardwareMap.appContext, purpleSoundID);
         } else {
             telemetry.addLine("EMPTY");
-            //SoundPlayer.getInstance().stopPlayingLoops();
+            SoundPlayer.getInstance().stopPlayingLoops();
         }
 
         if (gamepad1.x) {
