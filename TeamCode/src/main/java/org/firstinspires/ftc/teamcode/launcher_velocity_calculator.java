@@ -125,21 +125,27 @@ public class launcher_velocity_calculator extends OpMode {
         follower.update();
         telemetryM.update();
 
-        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
-        telemetry.addData("# AprilTags Detected", currentDetections.size());
+        AprilTagDetection tag24 = null;
 
-        //for red goal
-        for (AprilTagDetection detection : currentDetections) {
-            if (detection.id == 24 && detection.metadata !=null) {
-                yaw1.set(.02*detection.ftcPose.bearing);
-                yaw2.set(.02*detection.ftcPose.bearing);
-
-                distanceToTarget = detection.ftcPose.range;
-            } else if (currentDetections.isEmpty()) {
-                yaw1.set(0);
-                yaw2.set(0);
+        for (AprilTagDetection detection : aprilTag.getDetections()) {
+            if (detection.id == 24 && detection.metadata != null) {
+                tag24 = detection;
+                break; // lock onto ONLY tag 24
             }
-        }   // end for() loop
+        }
+
+        if (tag24 != null) {
+            double bearing = tag24.ftcPose.bearing;
+
+            yaw1.set(0.02 * bearing);
+            yaw2.set(0.02 * bearing);
+
+            distanceToTarget = tag24.ftcPose.range;
+        } else {
+            yaw1.set(0);
+            yaw2.set(0);
+        }
+
 
         if (gamepad1.xWasPressed()) {
             slowMode = !slowMode;
