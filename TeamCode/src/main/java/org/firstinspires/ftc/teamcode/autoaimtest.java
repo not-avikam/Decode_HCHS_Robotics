@@ -64,7 +64,6 @@ public class autoaimtest extends OpMode {
         yaw2 = new CRServoEx(hardwareMap, "yaw2");
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         launcher = new MotorEx(hardwareMap, "launcher");
-
         //yaw1.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
         //yaw2.setPIDF(new PIDFCoefficients(kp, ki, kd, kf));
 
