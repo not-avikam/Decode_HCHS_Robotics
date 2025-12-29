@@ -72,7 +72,6 @@ public class Auton_Red extends OpMode {
     private final Pose pickup3Posectrl = new Pose(90, 32);
     private final Pose scorePose4 = new Pose(80, 16, Math.toRadians(67));
     private final Pose human = new Pose (134,42, Math.toRadians(90));
-    double velocity = 10000;
     private double kP = .01;
     private double pitchAngleDegrees;
 
@@ -83,6 +82,10 @@ public class Auton_Red extends OpMode {
     private int shootBall;
     private int intakeBall1, intakeBall2, intakeBall3;
     private PathChain preload, grabPickup1, scorePickup1, grabPickup2, scorePickup2, grabPickup3, scorePickup3, goToHuman;
+    private double distanceToTarget = 0;
+    double velocityIPS = 0;
+    double velocityTPS = 0;
+    public static double launchAngleDeg = 45;   // degrees
 
     public void buildPaths() {
 
@@ -556,7 +559,7 @@ public class Auton_Red extends OpMode {
         switch (shootBall) {
             case 0:
                 indexer.set(300);
-                if ((launcher.getVelocity()) >= (velocity-100) & launcher.getVelocity() <= (velocity+100)) {
+                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150)) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(1);
@@ -577,7 +580,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 3:
-                if ((launcher.getVelocity()) >= (velocity-100) && launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() >= .2) {
+                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150) && actionTimer.getElapsedTimeSeconds() >= .2) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(4);
@@ -598,7 +601,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 6:
-                if ((launcher.getVelocity()) >= (velocity-100) && launcher.getVelocity() <= (velocity+100) && actionTimer.getElapsedTimeSeconds() > .2) {
+                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150) && actionTimer.getElapsedTimeSeconds() > .2) {
                     agigtator.set(.3);
                     actionTimer.resetTimer();
                     setShootBall(7);
@@ -612,7 +615,6 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 8:
-                launcher.setVelocity(0);
                 if (actionTimer.getElapsedTimeSeconds() > .2) {
                     indexer.set(0);
                     actionTimer.resetTimer();
@@ -639,48 +641,18 @@ public class Auton_Red extends OpMode {
     /** This is the main loop of the OpMode, it will run repeatedly after clicking "Play". **/
     @Override
     public void loop() {
-
-        if (colorSensor instanceof SwitchableLight) {
-            ((SwitchableLight)colorSensor).enableLight(true);
-        }
-
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
         telemetry.addData("# AprilTags Detected", currentDetections.size());
-
 
         for (AprilTagDetection detection : currentDetections) {
             if (detection.id == 24 && detection.metadata !=null) {
                 yaw1.set(.02*detection.ftcPose.bearing);
                 yaw2.set(.02*detection.ftcPose.bearing);
-                if (detection.ftcPose.pitch > 110 && detection.ftcPose.pitch < 140){
-                    pitchAngleDegrees = detection.ftcPose.pitch*11.25;
-                } else if (detection.ftcPose.pitch > 140){
-                    pitchAngleDegrees = 140;
-                } else if (detection.ftcPose.pitch < 110) {
-                    pitchAngleDegrees = 110;
-                } else {
-                    pitchAngleDegrees = 125;
-                }
-                pitch.set(pitchAngleDegrees);
-                double theta = Math.toRadians(pitchAngleDegrees);
-                double R = detection.ftcPose.range;
-                double h = detection.ftcPose.elevation;
-                double g = 9.8;
-                double numerator = g * R * R;
-                double denominator = 2 * Math.pow(Math.cos(theta), 2) * (R * Math.tan(theta) - h);
-                velocity = (Math.sqrt(numerator / denominator))*142.239908137;
-                if (follower.getCurrentPathChain() == preload || follower.getCurrentPathChain() == scorePickup1 || follower.getCurrentPathChain() == scorePickup2 || follower.getCurrentPathChain() == scorePickup3) {
-                    launcher.set(velocity);
-                } else {
-                    launcher.set(0);
-                }
-                telemetry.addData("target velocity", velocity);
-                telemetry.addData("current velocity", launcher.getVelocity());
-                telemetry.addData("pitch angle", pitchAngleDegrees);
+
+                distanceToTarget = detection.ftcPose.range;
             } else if (currentDetections.isEmpty()) {
                 yaw1.set(0);
                 yaw2.set(0);
-                launcher.set(0);
             }
         }   // end for() loop
 
@@ -690,11 +662,48 @@ public class Auton_Red extends OpMode {
             intake.setPower(0);
         }
 
+        double theta = Math.toRadians(launchAngleDeg);
+
+        // Physics denominator
+        double denom =
+                2 * Math.pow(Math.cos(theta), 2) *
+                        (distanceToTarget * Math.tan(theta) - 39);
+
+        // Compute required IPS safely
+        if (denom > 0 && distanceToTarget > 0) {
+            velocityIPS = Math.sqrt(
+                    (386.4 * distanceToTarget * distanceToTarget) / denom
+            );
+        } else {
+            velocityIPS = 0;
+        }
+
+        // IPS -> TPS (your regression, inverted)
+        if (velocityIPS > 0) {
+            velocityTPS = Math.log(velocityIPS / 69.9) / 0.000821;
+        } else {
+            velocityTPS = 0;
+        }
+
+        // Fire launcher
+        if (Double.isFinite(velocityTPS) && follower.getCurrentPathChain() == scorePickup1 ||
+                Double.isFinite(velocityTPS) && follower.getCurrentPathChain() == scorePickup2 ||
+                Double.isFinite(velocityTPS) && follower.getCurrentPathChain() == scorePickup3 ||
+                Double.isFinite(velocityTPS) && follower.getCurrentPathChain() == preload) {
+            launcher.setVelocity(velocityTPS+200);
+        } else {
+            launcher.setVelocity(0);
+        }
+
         // These loop the movements of the robot, these must be called continuously in order to work
         follower.update();
         autonomousPathUpdate();
 
         // Feedback to Driver Hub for debugging
+        telemetry.addData("launcher velocity target", velocityTPS);
+        telemetry.addData("actual launcher velocity", launcher.getVelocity());
+        telemetry.addData("distance to target", distanceToTarget);
+        telemetry.addData("motif", detected_obelisk);
         telemetry.addData("path state", pathState);
         telemetry.addData("x", follower.getPose().getX());
         telemetry.addData("y", follower.getPose().getY());
@@ -711,6 +720,7 @@ public class Auton_Red extends OpMode {
         yaw2 = new CRServoEx(hardwareMap, "yaw2");
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         launcher = new MotorEx(hardwareMap, "launcher");
+        colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
 
         initAprilTag();
 
