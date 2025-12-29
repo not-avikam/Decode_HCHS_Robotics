@@ -40,9 +40,6 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-
-//TODO: Use a color sensor to verify that hue values are correct
-
 @Autonomous(name="Auto Red HSI", group="HSI LM2")
 public class Auton_Red extends OpMode {
 
@@ -641,20 +638,26 @@ public class Auton_Red extends OpMode {
     /** This is the main loop of the OpMode, it will run repeatedly after clicking "Play". **/
     @Override
     public void loop() {
-        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
-        telemetry.addData("# AprilTags Detected", currentDetections.size());
+        AprilTagDetection tag24 = null;
 
-        for (AprilTagDetection detection : currentDetections) {
-            if (detection.id == 24 && detection.metadata !=null) {
-                yaw1.set(.02*detection.ftcPose.bearing);
-                yaw2.set(.02*detection.ftcPose.bearing);
-
-                distanceToTarget = detection.ftcPose.range;
-            } else if (currentDetections.isEmpty()) {
-                yaw1.set(0);
-                yaw2.set(0);
+        for (AprilTagDetection detection : aprilTag.getDetections()) {
+            if (detection.id == 24 && detection.metadata != null) {
+                tag24 = detection;
+                break; // lock onto ONLY tag 24
             }
-        }   // end for() loop
+        }
+
+        if (tag24 != null) {
+            double bearing = tag24.ftcPose.bearing;
+
+            yaw1.set(0.02 * bearing);
+            yaw2.set(0.02 * bearing);
+
+            distanceToTarget = tag24.ftcPose.range;
+        } else {
+            yaw1.set(0);
+            yaw2.set(0);
+        }
 
         if (follower.getCurrentPathChain() == grabPickup1 || follower.getCurrentPathChain() == grabPickup2 || follower.getCurrentPathChain() == grabPickup3) {
             intake.setPower(1);
