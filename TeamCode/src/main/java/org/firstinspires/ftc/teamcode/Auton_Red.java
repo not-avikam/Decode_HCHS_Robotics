@@ -667,12 +667,11 @@ public class Auton_Red extends OpMode {
 
         double theta = Math.toRadians(launchAngleDeg);
 
-        // Physics denominator
         double denom =
                 2 * Math.pow(Math.cos(theta), 2) *
                         (distanceToTarget * Math.tan(theta) - 39);
 
-        // Compute required IPS safely
+        // Compute required velocity safely
         if (denom > 0 && distanceToTarget > 0) {
             velocityIPS = Math.sqrt(
                     (386.4 * distanceToTarget * distanceToTarget) / denom
@@ -681,7 +680,7 @@ public class Auton_Red extends OpMode {
             velocityIPS = 0;
         }
 
-        // IPS -> TPS (your regression, inverted)
+        // inches per second to ticks per second
         if (velocityIPS > 0) {
             velocityTPS = Math.log(velocityIPS / 69.9) / 0.000821;
         } else {
@@ -702,7 +701,7 @@ public class Auton_Red extends OpMode {
         follower.update();
         autonomousPathUpdate();
 
-        // Feedback to Driver Hub for debugging
+        // Feedback to Driver Hub
         telemetry.addData("launcher velocity target", velocityTPS);
         telemetry.addData("actual launcher velocity", launcher.getVelocity());
         telemetry.addData("distance to target", distanceToTarget);
@@ -734,7 +733,7 @@ public class Auton_Red extends OpMode {
 
         launcher.setRunMode(MotorEx.RunMode.VelocityControl);
 
-        pitch.set(1462.5);
+        //pitch.set(1462.5);
 
         //turns on brake mode
         //brake mode gives motors power in the opposite direction in order to make them stop faster
@@ -745,8 +744,8 @@ public class Auton_Red extends OpMode {
         //ensures that all servos start at the correct position
         agigtator.set(0);
         indexer.set(0);
-        //sets pidf values for the launcher
-        launcher.setVeloCoefficients(.03, .8, .05);
+        //sets pid values for the launcher
+        launcher.setVeloCoefficients(0.6, 0, 0);
 
 
         pathTimer = new Timer();
@@ -767,6 +766,26 @@ public class Auton_Red extends OpMode {
     /** This method is called continuously after Init while waiting for "play". **/
     @Override
     public void init_loop() {
+    }
+
+
+    /** This method is called once at the start of the OpMode.
+     * It runs all the setup actions, including building paths and starting the path system **/
+    @Override
+    public void start() {
+        opmodeTimer.resetTimer();
+        setPathState(0);
+        setShootBall(0);
+        setIntakeBall1(0);
+        ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
+
+        GainControl gainControl = visionPortal.getCameraControl(GainControl.class);
+        gainControl.setGain(255);
+        if (exposureControl.getMode() != ExposureControl.Mode.Manual) {
+            exposureControl.setMode(ExposureControl.Mode.Manual);
+        }
+        exposureControl.setExposure(6, TimeUnit.MILLISECONDS);
+
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
         telemetry.addData("# AprilTags Detected", currentDetections.size());
 
@@ -792,26 +811,7 @@ public class Auton_Red extends OpMode {
             }
 
             telemetry.update();
-        }
-    }
-
-
-    /** This method is called once at the start of the OpMode.
-     * It runs all the setup actions, including building paths and starting the path system **/
-    @Override
-    public void start() {
-        opmodeTimer.resetTimer();
-        setPathState(0);
-        setShootBall(0);
-        setIntakeBall1(0);
-        ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
-
-        GainControl gainControl = visionPortal.getCameraControl(GainControl.class);
-        gainControl.setGain(255);
-        if (exposureControl.getMode() != ExposureControl.Mode.Manual) {
-            exposureControl.setMode(ExposureControl.Mode.Manual);
-        }
-        exposureControl.setExposure(6, TimeUnit.MILLISECONDS);
+            }
     }
 
     /** We do not use this because everything should automatically disable **/
