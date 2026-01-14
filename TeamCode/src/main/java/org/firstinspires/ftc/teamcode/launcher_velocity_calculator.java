@@ -1,17 +1,10 @@
 package org.firstinspires.ftc.teamcode;
 
-import android.view.View;
-
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.HeadingInterpolator;
-import com.pedropathing.paths.Path;
-import com.pedropathing.paths.PathChain;
-import com.qualcomm.ftccommon.SoundPlayer;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -19,6 +12,8 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.seattlesolvers.solverslib.controller.PIDFController;
+import com.seattlesolvers.solverslib.controller.wpilibcontroller.SimpleMotorFeedforward;
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
 import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
@@ -34,18 +29,14 @@ import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 
 @Configurable
-@TeleOp(name = "lm2 teleop drive", group = "lm2 2025")
+@TeleOp(name = "TAP THIS ONE lm2 teleop drive", group = "lm2 2025")
 public class launcher_velocity_calculator extends OpMode {
     private static final boolean USE_WEBCAM = true;  // true for webcam, false for phone camera
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
-    public static double velocity_servo = 0;
-    public static double velocity_intake = 0;
     public static double pitch_position = 0;
 
     // Adjustable shot parameters
@@ -61,7 +52,6 @@ public class launcher_velocity_calculator extends OpMode {
     private Servo agigtator;
     private ServoEx indexer;
     private ServoEx pitch;
-
     double[] INTAKE_POS = {0, 130, 270};
     double[] SHOOT_POS = {170, 240, 300};
 
@@ -74,6 +64,12 @@ public class launcher_velocity_calculator extends OpMode {
     private Follower follower;
     private TelemetryManager telemetryM;
     private Pose startingPose;
+    SimpleMotorFeedforward launcherfeedforward =
+            new SimpleMotorFeedforward(kS, kV, kA);
+    public static double kS = 0;
+    public static double kV = 0;
+    public static double kA = 0;
+
     private TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
     private boolean slowMode = false;
     //private boolean greenFound, purpleFound, gongFound;
@@ -100,6 +96,7 @@ public class launcher_velocity_calculator extends OpMode {
         launcher.setInverted(true);
         launcher.setRunMode(MotorEx.RunMode.VelocityControl);
         launcher.setVeloCoefficients(0.6, 0, 0);
+
         launcher.setZeroPowerBehavior(MotorEx.ZeroPowerBehavior.BRAKE);
 
         intake.setDirection(DcMotor.Direction.REVERSE);
@@ -108,6 +105,8 @@ public class launcher_velocity_calculator extends OpMode {
 
         startingPose = new Pose(0,0, Math.toRadians(0));
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
+
+        pitch.set(.14);
 
         //purpleSoundID = hardwareMap.appContext.getResources().getIdentifier("purple", "raw", hardwareMap.appContext.getPackageName());
         //greenSoundID = hardwareMap.appContext.getResources().getIdentifier("green",   "raw", hardwareMap.appContext.getPackageName());
@@ -248,7 +247,7 @@ public class launcher_velocity_calculator extends OpMode {
 
         // Fire launcher
         if (gamepad1.left_trigger != 0 && Double.isFinite(velocityTPS)) {
-            launcher.setVelocity(velocityTPS+adder);
+            launcher.setVelocity(launcherfeedforward.calculate(velocityTPS));
         } else {
             launcher.setVelocity(0);
         }
@@ -325,6 +324,8 @@ public class launcher_velocity_calculator extends OpMode {
         } else {
             intake.setPower(0);
         }
+
+        pitch.set(.14);
 
         telemetry.addData("Distance (in)", distanceToTarget);
         telemetry.addData("Velocity IPS", velocityIPS);
