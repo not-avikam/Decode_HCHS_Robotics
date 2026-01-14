@@ -40,7 +40,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-@Autonomous(name="Auto Red HSI", group="HSI LM2")
+@Autonomous(name="Auto Red HSI", group="lm2 2025")
 public class Auton_Red extends OpMode {
 
     private static final boolean USE_WEBCAM = true;  // true for webcam, false for phone camera
@@ -51,14 +51,14 @@ public class Auton_Red extends OpMode {
     private static final int GPP_TAG_ID = 21;
     public static int detected_obelisk;
     private MotorEx launcher = null;
-    private DcMotorEx intake = null;
+    private CRServoEx intake = null;
     private ServoEx agigtator = null;
     private ServoEx pitch = null;
     private CRServoEx yaw1, yaw2 = null;
     private ServoEx indexer = null;
     NormalizedColorSensor colorSensor;
-    private final Pose startPose = new Pose(117,128, Math.toRadians(45));
-    private final Pose scorePreload = new Pose(97, 84, Math.toRadians(45)); // Start Pose of our robot.
+    private final Pose startPose = new Pose(87,9, Math.toRadians(0));
+    private final Pose scorePreload = new Pose(97, 84, Math.toRadians(0)); // Start Pose of our robot.
     private final Pose scoreFace = new Pose(137,142);
     private final Pose pickup1pose = new Pose(127, 83, Math.toRadians(0));
     private final Pose scorePose2 = new Pose(88, 76, Math.toRadians(45));
@@ -86,55 +86,84 @@ public class Auton_Red extends OpMode {
 
     public void buildPaths() {
 
-        /* This is our scorePreload path. We are using a BezierLine, which is a straight line. */
-        preload = follower.pathBuilder()
-                .addPath(new BezierCurve(startPose,  scorePreload))
-                .setHeadingInterpolation(HeadingInterpolator.linear(45, 0))
-                .build();
-        //scorePreload.setLinearHeadingInterpolation(startPose.getHeading(), scorePose.getHeading());
+        preload = follower.pathBuilder().addPath(
+                        new BezierLine(
+                                new Pose(87.000, 9.000),
 
-    /* Here is an example for Constant Interpolation
-    scorePreload.setConstantInterpolation(startPose.getHeading()); */
+                                new Pose(102.241, 35.334)
+                        )
+                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
 
-        /* This is our grabPickup1 PathChain. We are using a single path with a BezierLine, which is a straight line. */
-        grabPickup1 = follower.pathBuilder()
-                .addPath(new BezierLine(scorePreload,  pickup1pose))
-                .setConstantHeadingInterpolation(0)
                 .build();
 
-        /* This is our scorePickup1 PathChain. We are using a single path with a BezierLine, which is a straight line. */
-        scorePickup1 = follower.pathBuilder()
-                .addPath(new BezierLine(pickup1pose, scorePose2))
-                .setConstantHeadingInterpolation(0)
+        grabPickup1 = follower.pathBuilder().addPath(
+                        new BezierLine(
+                                new Pose(102.241, 35.334),
+
+                                new Pose(134.471, 35.329)
+                        )
+                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+
                 .build();
 
-        /* This is our grabPickup2 PathChain. We are using a single path with a BezierLine, which is a straight line. */
-        grabPickup2 = follower.pathBuilder()
-                .addPath(new BezierCurve(scorePose2, pickup2Posectrl, pickup2Pose))
-                .setConstantHeadingInterpolation(0)
+        scorePickup1 = follower.pathBuilder().addPath(
+                        new BezierLine(
+                                new Pose(134.471, 35.329),
+
+                                new Pose(87.002, 9.116)
+                        )
+                ).setConstantHeadingInterpolation(Math.toRadians(0))
+
                 .build();
 
-        /* This is our scorePickup2 PathChain. We are using a single path with a BezierLine, which is a straight line. */
-        scorePickup2 = follower.pathBuilder()
-                .addPath(new BezierLine(pickup2Pose, scorePose3))
-                .setConstantHeadingInterpolation(0)
+        grabPickup2 = follower.pathBuilder().addPath(
+                        new BezierCurve(
+                                new Pose(87.002, 9.116),
+                                new Pose(69.177, 69.328),
+                                new Pose(133.710, 57.353)
+                        )
+                ).setConstantHeadingInterpolation(Math.toRadians(0))
+
                 .build();
 
-        /* This is our grabPickup3 PathChain. We are using a single path with a BezierLine, which is a straight line. */
-        grabPickup3 = follower.pathBuilder()
-                .addPath(new BezierCurve(scorePose3, pickup3Posectrl, pickup3Pose))
-                .setConstantHeadingInterpolation(0)
+        scorePickup2 = follower.pathBuilder().addPath(
+                        new BezierLine(
+                                new Pose(133.710, 57.353),
+
+                                new Pose(81.000, 67.000)
+                        )
+                ).setConstantHeadingInterpolation(Math.toRadians(0))
+
                 .build();
 
-        /* This is our scorePickup3 PathChain. We are using a single path with a BezierLine, which is a straight line. */
-        scorePickup3 = follower.pathBuilder()
-                .addPath(new BezierLine(pickup3Pose, scorePose4))
-                .setConstantHeadingInterpolation(0)
+        grabPickup3 = follower.pathBuilder().addPath(
+                        new BezierCurve(
+                                new Pose(81.000, 67.000),
+                                new Pose(90.136, 82.616),
+                                new Pose(126.974, 84.855)
+                        )
+                ).setConstantHeadingInterpolation(Math.toRadians(0))
+
                 .build();
 
-        goToHuman = follower.pathBuilder()
-                .addPath(new BezierLine(scorePose4, human))
-                .setLinearHeadingInterpolation(0, 90)
+        scorePickup3 = follower.pathBuilder().addPath(
+                        new BezierLine(
+                                new Pose(126.974, 84.855),
+
+                                new Pose(111.196, 98.607)
+                        )
+                ).setConstantHeadingInterpolation(Math.toRadians(0))
+
+                .build();
+
+        goToHuman = follower.pathBuilder().addPath(
+                        new BezierLine(
+                                new Pose(111.196, 98.607),
+
+                                new Pose(119.525, 70.201)
+                        )
+                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(90))
+
                 .build();
 
     }
@@ -142,14 +171,14 @@ public class Auton_Red extends OpMode {
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0:
-                follower.followPath(preload, false);
-                setPathState(1);
+                shootPreload();
+                if (shootBall >= 6) {
+                    follower.followPath(preload, false);
+                    setPathState(1);
+                }
                 break;
             case 1:
-                shoot();
-                if (shootBall >= 6) {
-                    setPathState(2);
-                }
+
                 break;
             case 2:
             /* You could check for
@@ -262,6 +291,8 @@ public class Auton_Red extends OpMode {
                 }
                 if (intakeBall3 == 3) {
                     setPathState(-1);
+                    telemetry.addLine("Autonomous Routine Completed");
+                    telemetry.addLine("Good Luck!");
                 }
                 break;
         }
@@ -571,7 +602,7 @@ public class Auton_Red extends OpMode {
                 break;
             case 2:
                 if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    indexer.set(240);
+                    indexer.set(228);
                     actionTimer.resetTimer();
                     setShootBall(3);
                 }
@@ -592,7 +623,7 @@ public class Auton_Red extends OpMode {
                 break;
             case 5:
                 if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    indexer.set(170);
+                    indexer.set(162);
                     actionTimer.resetTimer();
                     setShootBall(6);
                 }
@@ -625,6 +656,93 @@ public class Auton_Red extends OpMode {
     public void setShootBall(int sBall) {
         shootBall = sBall;
         shootTimer.resetTimer();
+    }
+
+    public void shootPreload() {
+
+        if (detected_obelisk == GPP_TAG_ID) {
+            indexer.set(300);
+        } else {
+            indexer.set(228);
+        }
+
+        switch (shootBall) {
+
+            case 0:
+                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150)) {
+                    agigtator.set(.3);
+                    actionTimer.resetTimer();
+                    setShootBall(1);
+                }
+                break;
+            case 1:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    agigtator.set(0);
+                    actionTimer.resetTimer();
+                    setShootBall(2);
+                }
+                break;
+            case 2:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    if (detected_obelisk == PGP_TAG_ID) {
+                        indexer.set(295.5);
+                    } else if (detected_obelisk == PPG_TAG_ID){
+                        indexer.set(162);
+                    } else {
+                        indexer.set(228);
+                    }
+                    actionTimer.resetTimer();
+                    setShootBall(3);
+                }
+                break;
+            case 3:
+                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150) && actionTimer.getElapsedTimeSeconds() >= .2) {
+                    agigtator.set(.3);
+                    actionTimer.resetTimer();
+                    setShootBall(4);
+                }
+                break;
+            case 4:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    agigtator.set(0);
+                    actionTimer.resetTimer();
+                    setShootBall(5);
+                }
+                break;
+            case 5:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    if (detected_obelisk == PPG_TAG_ID) {
+                        indexer.set(295.5);
+                    } else {
+                        indexer.set(162);
+                    }
+                    actionTimer.resetTimer();
+                    setShootBall(6);
+                }
+                break;
+            case 6:
+                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150) && actionTimer.getElapsedTimeSeconds() > .2) {
+                    agigtator.set(.3);
+                    actionTimer.resetTimer();
+                    setShootBall(7);
+                }
+                break;
+            case 7:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    agigtator.set(0);
+                    actionTimer.resetTimer();
+                    setShootBall(8);
+                }
+                break;
+            case 8:
+                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    indexer.set(0);
+                    actionTimer.resetTimer();
+                    setShootBall(9);
+                }
+                break;
+        }
+
     }
 
     /** These change the states of the paths and actions. It will also reset the timers of the individual switches **/
@@ -660,9 +778,9 @@ public class Auton_Red extends OpMode {
         }
 
         if (follower.getCurrentPathChain() == grabPickup1 || follower.getCurrentPathChain() == grabPickup2 || follower.getCurrentPathChain() == grabPickup3) {
-            intake.setPower(1);
+            intake.set(1);
         } else {
-            intake.setPower(0);
+            intake.set(0);
         }
 
         double theta = Math.toRadians(launchAngleDeg);
@@ -701,21 +819,32 @@ public class Auton_Red extends OpMode {
         follower.update();
         autonomousPathUpdate();
 
+        if (follower.isBusy()) {
+            telemetry.addLine("follower is busy");
+        } else {
+            telemetry.addLine("follower is finished");
+        }
+
         // Feedback to Driver Hub
         telemetry.addData("launcher velocity target", velocityTPS);
         telemetry.addData("actual launcher velocity", launcher.getVelocity());
         telemetry.addData("distance to target", distanceToTarget);
         telemetry.addData("motif", detected_obelisk);
-        telemetry.addData("path state", pathState);
         telemetry.addData("x", follower.getPose().getX());
         telemetry.addData("y", follower.getPose().getY());
         telemetry.addData("heading", follower.getPose().getHeading());
+        telemetry.addData("path state", pathState);
+        telemetry.addData("shoot ball", shootBall);
+        telemetry.addData("intake ball 1", intakeBall1);
+        telemetry.addData("intake ball 2", intakeBall2);
+        telemetry.addData("intake ball 3", intakeBall3);
+
         telemetry.update();
     }
     /** This method is called once at the init of the OpMode. **/
     @Override
     public void init() {
-        intake = hardwareMap.get(DcMotorEx.class, "intake");
+        intake = new CRServoEx(hardwareMap, "intake");
         agigtator = new ServoEx(hardwareMap, "agigtator");
         indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
         yaw1 = new CRServoEx(hardwareMap, "yaw1");
@@ -728,7 +857,7 @@ public class Auton_Red extends OpMode {
 
         //reverses directions for motors where it is necessary
         launcher.setInverted(true);
-        intake.setDirection(DcMotorEx.Direction.REVERSE);
+        intake.setInverted(true);
         agigtator.setInverted(true);
 
         launcher.setRunMode(MotorEx.RunMode.VelocityControl);
@@ -739,7 +868,6 @@ public class Auton_Red extends OpMode {
         //brake mode gives motors power in the opposite direction in order to make them stop faster
         //same technique is used in regenerative braking for electric vehicles
         launcher.setZeroPowerBehavior(MotorEx.ZeroPowerBehavior.BRAKE);
-        intake.setZeroPowerBehavior(BRAKE);
 
         //ensures that all servos start at the correct position
         agigtator.set(0);
