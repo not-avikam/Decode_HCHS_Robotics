@@ -13,15 +13,21 @@ import com.pedropathing.paths.HeadingInterpolator;
 import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.SwitchableLight;
+import com.seattlesolvers.solverslib.drivebase.MecanumDrive;
+import com.seattlesolvers.solverslib.gamepad.GamepadEx;
+import com.seattlesolvers.solverslib.gamepad.GamepadKeys;
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
+import com.seattlesolvers.solverslib.hardware.motors.Motor;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
 import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 
@@ -32,6 +38,8 @@ import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.Exposur
 import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.GainControl;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
@@ -49,41 +57,36 @@ public class Auton_Red extends OpMode {
     private static final int PPG_TAG_ID = 23;
     private static final int PGP_TAG_ID = 22;
     private static final int GPP_TAG_ID = 21;
-    public static int detected_obelisk;
+    public static int detected_obelisk = 23;
     private MotorEx launcher = null;
     private CRServoEx intake = null;
-    private ServoEx agigtator = null;
+    private Servo agigtator = null;
     private ServoEx pitch = null;
-    private CRServoEx yaw1, yaw2 = null;
+    private MotorEx yaw1 = null;
+    private IMU imu;
     private ServoEx indexer = null;
     NormalizedColorSensor colorSensor;
     private final Pose startPose = new Pose(87,9, Math.toRadians(0));
-    private final Pose scorePreload = new Pose(97, 84, Math.toRadians(0)); // Start Pose of our robot.
-    private final Pose scoreFace = new Pose(137,142);
-    private final Pose pickup1pose = new Pose(127, 83, Math.toRadians(0));
-    private final Pose scorePose2 = new Pose(88, 76, Math.toRadians(45));
-    private final Pose scorePose3 = new Pose(81, 67, Math.toRadians(45));
-    private final Pose pickup2Pose = new Pose(133, 57, Math.toRadians(0));
-    private final Pose pickup2Posectrl = new Pose(88, 59);
-    private final Pose pickup3Pose = new Pose(132, 35, Math.toRadians(0)); // Lowest (Third Set) of Artifacts from the Spike Mark.
-    private final Pose pickup3Posectrl = new Pose(90, 32);
-    private final Pose scorePose4 = new Pose(80, 16, Math.toRadians(67));
-    private final Pose human = new Pose (134,42, Math.toRadians(90));
     private double kP = .01;
-    private double pitchAngleDegrees;
-
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer, shootTimer;
 
     private int pathState;
     private int shootBall;
+    private int ballsShot = 0;
     private int intakeBall1, intakeBall2, intakeBall3;
     private PathChain preload, grabPickup1, scorePickup1, grabPickup2, scorePickup2, grabPickup3, scorePickup3, goToHuman;
-    private double distanceToTarget = 0;
     double velocityIPS = 0;
-    double velocityTPS = 0;
+    double velocityTPS = 1300;
     public static double launchAngleDeg = 45;   // degrees
-
+    public static double distanceToTarget = 60; // inches
+    double atX;
+    double atY;
+    double imuHeading;
+    YawPitchRollAngles orientation;
+    private boolean pitchShoot = false;
+    double pitchAngle = .12;
+    private double adder = 200;
     public void buildPaths() {
 
         preload = follower.pathBuilder().addPath(
@@ -172,7 +175,7 @@ public class Auton_Red extends OpMode {
         switch (pathState) {
             case 0:
                 shootPreload();
-                if (shootBall >= 6) {
+                if (ballsShot >= 3) {
                     follower.followPath(preload, false);
                     setPathState(1);
                 }
@@ -586,16 +589,19 @@ public class Auton_Red extends OpMode {
 
         switch (shootBall) {
             case 0:
+                follower.holdPoint(follower.getPose());
                 indexer.set(300);
+                pitchShoot = true;
                 if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150)) {
-                    agigtator.set(.3);
+                    agigtator.setPosition(0);
+                    ballsShot ++;
                     actionTimer.resetTimer();
                     setShootBall(1);
                 }
                 break;
             case 1:
                 if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(0);
+                    agigtator.setPosition(0.3);
                     actionTimer.resetTimer();
                     setShootBall(2);
                 }
@@ -609,14 +615,14 @@ public class Auton_Red extends OpMode {
                 break;
             case 3:
                 if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150) && actionTimer.getElapsedTimeSeconds() >= .2) {
-                    agigtator.set(.3);
+                    agigtator.setPosition(0);
                     actionTimer.resetTimer();
                     setShootBall(4);
                 }
                 break;
             case 4:
                 if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(0);
+                    agigtator.setPosition(0.3);
                     actionTimer.resetTimer();
                     setShootBall(5);
                 }
@@ -630,20 +636,22 @@ public class Auton_Red extends OpMode {
                 break;
             case 6:
                 if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150) && actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(.3);
+                    agigtator.setPosition(0);
                     actionTimer.resetTimer();
                     setShootBall(7);
                 }
                 break;
             case 7:
                 if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(0);
+                    agigtator.setPosition(0.3);
                     actionTimer.resetTimer();
                     setShootBall(8);
                 }
                 break;
             case 8:
+                follower.breakFollowing();
                 if (actionTimer.getElapsedTimeSeconds() > .2) {
+                    pitchShoot = false;
                     indexer.set(0);
                     actionTimer.resetTimer();
                     setShootBall(9);
@@ -669,21 +677,24 @@ public class Auton_Red extends OpMode {
         switch (shootBall) {
 
             case 0:
-                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150)) {
-                    agigtator.set(.3);
+                follower.holdPoint(follower.getPose());
+                pitchShoot = true;
+                if ((launcher.getVelocity()) >= (1300-150) && launcher.getVelocity() <= (1300+250)) {
+                    agigtator.setPosition(0);
+                    ballsShot ++;
                     actionTimer.resetTimer();
                     setShootBall(1);
                 }
                 break;
             case 1:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(0);
+                if (actionTimer.getElapsedTimeSeconds() > .5) {
+                    agigtator.setPosition(0.3);
                     actionTimer.resetTimer();
                     setShootBall(2);
                 }
                 break;
             case 2:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                if (actionTimer.getElapsedTimeSeconds() > .5) {
                     if (detected_obelisk == PGP_TAG_ID) {
                         indexer.set(295.5);
                     } else if (detected_obelisk == PPG_TAG_ID){
@@ -696,21 +707,22 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 3:
-                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150) && actionTimer.getElapsedTimeSeconds() >= .2) {
-                    agigtator.set(.3);
+                if ((launcher.getVelocity()) >= (1300-150) && launcher.getVelocity() <= (1300+250) && actionTimer.getElapsedTimeSeconds() >= .5) {
+                    agigtator.setPosition(0);
+                    ballsShot ++;
                     actionTimer.resetTimer();
                     setShootBall(4);
                 }
                 break;
             case 4:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(0);
+                if (actionTimer.getElapsedTimeSeconds() > .5) {
+                    agigtator.setPosition(0.3);
                     actionTimer.resetTimer();
                     setShootBall(5);
                 }
                 break;
             case 5:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                if (actionTimer.getElapsedTimeSeconds() > .5) {
                     if (detected_obelisk == PPG_TAG_ID) {
                         indexer.set(295.5);
                     } else {
@@ -721,21 +733,24 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 6:
-                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+150) && actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(.3);
+                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+250) && actionTimer.getElapsedTimeSeconds() > .5) {
+                    agigtator.setPosition(0);
+                    ballsShot ++;
                     actionTimer.resetTimer();
                     setShootBall(7);
                 }
                 break;
             case 7:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
-                    agigtator.set(0);
+                if (actionTimer.getElapsedTimeSeconds() > .5) {
+                    agigtator.setPosition(0.3);
                     actionTimer.resetTimer();
                     setShootBall(8);
                 }
                 break;
             case 8:
-                if (actionTimer.getElapsedTimeSeconds() > .2) {
+                follower.breakFollowing();
+                if (actionTimer.getElapsedTimeSeconds() > .5) {
+                    pitchShoot = false;
                     indexer.set(0);
                     actionTimer.resetTimer();
                     setShootBall(9);
@@ -748,6 +763,7 @@ public class Auton_Red extends OpMode {
     /** These change the states of the paths and actions. It will also reset the timers of the individual switches **/
     public void setPathState(int pState) {
         setShootBall(0);
+        ballsShot = 0;
         pathState = pState;
         pathTimer.resetTimer();
 
@@ -756,8 +772,10 @@ public class Auton_Red extends OpMode {
     /** This is the main loop of the OpMode, it will run repeatedly after clicking "Play". **/
     @Override
     public void loop() {
-        AprilTagDetection tag24 = null;
 
+        double height = 50;
+
+        AprilTagDetection tag24 = null;
         for (AprilTagDetection detection : aprilTag.getDetections()) {
             if (detection.id == 24 && detection.metadata != null) {
                 tag24 = detection;
@@ -766,30 +784,36 @@ public class Auton_Red extends OpMode {
         }
 
         if (tag24 != null) {
-            double bearing = tag24.ftcPose.bearing;
+            atX = tag24.ftcPose.x;
+            atY = tag24.ftcPose.y;
+            imuHeading = orientation.getYaw(AngleUnit.DEGREES);
 
-            yaw1.set(0.02 * bearing);
-            yaw2.set(0.02 * bearing);
+            yaw1.set(tag24.ftcPose.bearing*.03);
 
             distanceToTarget = tag24.ftcPose.range;
-        } else {
-            yaw1.set(0);
-            yaw2.set(0);
+            if (gamepad1.left_trigger !=0) {
+                pitchAngle = 45*5.9;
+            } else if (tag24.ftcPose.elevation < 35) {
+                pitchAngle = 35 * 5.9;
+            } else if (tag24.ftcPose.elevation > 70) {
+                pitchAngle = 70 * 5.9;
+            } else {
+                pitchAngle = ((tag24.ftcPose.elevation*5.9)+30);
+            }
+
+            telemetry.addLine("tag detected - forcing pose reset");
+            telemetry.addLine("tag detected");
         }
 
-        if (follower.getCurrentPathChain() == grabPickup1 || follower.getCurrentPathChain() == grabPickup2 || follower.getCurrentPathChain() == grabPickup3) {
-            intake.set(1);
-        } else {
-            intake.set(0);
-        }
+        pitch.set(pitchAngle);
+        double theta = Math.toRadians(pitchAngle);
 
-        double theta = Math.toRadians(launchAngleDeg);
-
+        // Physics denominator
         double denom =
                 2 * Math.pow(Math.cos(theta), 2) *
-                        (distanceToTarget * Math.tan(theta) - 39);
+                        (distanceToTarget * Math.tan(theta) - height);
 
-        // Compute required velocity safely
+        // Compute required IPS safely
         if (denom > 0 && distanceToTarget > 0) {
             velocityIPS = Math.sqrt(
                     (386.4 * distanceToTarget * distanceToTarget) / denom
@@ -798,22 +822,16 @@ public class Auton_Red extends OpMode {
             velocityIPS = 0;
         }
 
-        // inches per second to ticks per second
+        // IPS -> TPS
         if (velocityIPS > 0) {
-            velocityTPS = Math.log(velocityIPS / 69.9) / 0.000821;
+            velocityTPS = 1300;
         } else {
-            velocityTPS = 0;
+            velocityTPS = 1300;
         }
 
-        // Fire launcher
-        if (Double.isFinite(velocityTPS) && follower.getCurrentPathChain() == scorePickup1 ||
-                Double.isFinite(velocityTPS) && follower.getCurrentPathChain() == scorePickup2 ||
-                Double.isFinite(velocityTPS) && follower.getCurrentPathChain() == scorePickup3 ||
-                Double.isFinite(velocityTPS) && follower.getCurrentPathChain() == preload) {
-            launcher.setVelocity(velocityTPS+200);
-        } else {
-            launcher.setVelocity(0);
-        }
+        pitch.set(35*5.9);
+
+        launcher.setVelocity((1500));
 
         // These loop the movements of the robot, these must be called continuously in order to work
         follower.update();
@@ -844,21 +862,39 @@ public class Auton_Red extends OpMode {
     /** This method is called once at the init of the OpMode. **/
     @Override
     public void init() {
-        intake = new CRServoEx(hardwareMap, "intake");
-        agigtator = new ServoEx(hardwareMap, "agigtator");
-        indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
-        yaw1 = new CRServoEx(hardwareMap, "yaw1");
-        yaw2 = new CRServoEx(hardwareMap, "yaw2");
-        pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         launcher = new MotorEx(hardwareMap, "launcher");
+        intake = new CRServoEx(hardwareMap, "intake");
+        agigtator = hardwareMap.get(Servo.class, "agigtator");
         colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
+        indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
+        pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
+        imu = hardwareMap.get(IMU.class, "imu");
+        yaw1 = new MotorEx(hardwareMap, "yaw1");
+
+         orientation = imu.getRobotYawPitchRollAngles();
+
+        RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.RIGHT;
+        RevHubOrientationOnRobot.UsbFacingDirection  usbDirection  = RevHubOrientationOnRobot.UsbFacingDirection.UP;
+
+        RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(logoDirection, usbDirection);
+
+        // Now initialize the IMU with this mounting orientation
+        // Note: if you choose two conflicting directions, this initialization will cause a code exception.
+        imu.initialize(new IMU.Parameters(orientationOnRobot));
+
+        // set the run mode
+        yaw1.setRunMode(MotorEx.RunMode.RawPower);
+        yaw1.stopAndResetEncoder();
+        yaw1.setPositionCoefficient(0.05);
+
+        shootBall = 0;
+        ballsShot = 0;
 
         initAprilTag();
 
         //reverses directions for motors where it is necessary
         launcher.setInverted(true);
         intake.setInverted(true);
-        agigtator.setInverted(true);
 
         launcher.setRunMode(MotorEx.RunMode.VelocityControl);
 
@@ -870,7 +906,7 @@ public class Auton_Red extends OpMode {
         launcher.setZeroPowerBehavior(MotorEx.ZeroPowerBehavior.BRAKE);
 
         //ensures that all servos start at the correct position
-        agigtator.set(0);
+        agigtator.setPosition(0);
         indexer.set(0);
         //sets pid values for the launcher
         launcher.setVeloCoefficients(0.6, 0, 0);
@@ -881,13 +917,15 @@ public class Auton_Red extends OpMode {
         shootTimer = new Timer();
         actionTimer = new Timer();
         opmodeTimer.resetTimer();
+        shootTimer.resetTimer();
 
         follower = Constants.createFollower(hardwareMap);
         buildPaths();
         follower.setStartingPose(startPose);
 
         indexer.set(0);
-        agigtator.set(0);
+        pitch.set(70*5.9);
+        agigtator.setPosition(0.3);
 
     }
 
@@ -962,4 +1000,11 @@ public class Auton_Red extends OpMode {
                 .build();
 
     }   // end method initAprilTag()
+
+    private Pose getRobotPoseFromCamera() {
+        //Fill this out to get the robot Pose from the camera's output (apply any filters if you need to using follower.getPose() for fusion)
+        //Pedro Pathing has built-in KalmanFilter and LowPassFilter classes you can use for this
+        //Use this to convert standard FTC coordinates to standard Pedro Pathing coordinates
+        return new Pose(atX, atY, imuHeading, FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE);
+    }
 }
