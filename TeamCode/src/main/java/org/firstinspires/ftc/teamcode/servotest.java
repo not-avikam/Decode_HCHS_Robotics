@@ -1,120 +1,138 @@
-/* Copyright (c) 2021 FIRST. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted (subject to the limitations in the disclaimer below) provided that
- * the following conditions are met:
- *
- * Redistributions of source code must retain the above copyright notice, this list
- * of conditions and the following disclaimer.
- *
- * Redistributions in binary form must reproduce the above copyright notice, this
- * list of conditions and the following disclaimer in the documentation and/or
- * other materials provided with the distribution.
- *
- * Neither the name of FIRST nor the names of its contributors may be used to endorse or
- * promote products derived from this software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS
- * LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
 package org.firstinspires.ftc.teamcode;
 
+import android.view.View;
+
 import com.bylazar.configurables.annotations.Configurable;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.bylazar.telemetry.PanelsTelemetry;
+import com.bylazar.telemetry.TelemetryManager;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.geometry.Pose;
+import com.pedropathing.paths.HeadingInterpolator;
+import com.pedropathing.paths.Path;
+import com.pedropathing.paths.PathChain;
+import com.qualcomm.ftccommon.SoundPlayer;
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
+import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.util.ElapsedTime;
+import com.seattlesolvers.solverslib.hardware.motors.CRServo;
+import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
+import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
+import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 
-/*
- * This file contains an example of a Linear "OpMode".
- * An OpMode is a 'program' that runs in either the autonomous or the teleop period of an FTC match.
- * The names of OpModes appear on the menu of the FTC Driver Station.
- * When a selection is made from the menu, the corresponding OpMode is executed.
- *
- * This particular OpMode illustrates driving a 4-motor Omni-Directional (or Holonomic) robot.
- * This code will work with either a Mecanum-Drive or an X-Drive train.
- * Both of these drives are illustrated at https://gm0.org/en/latest/docs/robot-design/drivetrains/holonomic.html
- * Note that a Mecanum drive must display an X roller-pattern when viewed from above.
- *
- * Also note that it is critical to set the correct rotation direction for each motor.  See details below.
- *
- * Holonomic drives provide the ability for the robot to move in three axes (directions) simultaneously.
- * Each motion axis is controlled by one Joystick axis.
- *
- * 1) Axial:    Driving forward and backward               Left-joystick Forward/Backward
- * 2) Lateral:  Strafing right and left                     Left-joystick Right and Left
- * 3) Yaw:      Rotating Clockwise and counter clockwise    Right-joystick Right and Left
- *
- * This code is written assuming that the right-side motors need to be reversed for the robot to drive forward.
- * When you first test your robot, if it moves backward when you push the left stick forward, then you must flip
- * the direction of all 4 motors (see code below).
- *
- * Use Android Studio to Copy this Class, and Paste it into your team's code folder with a new name.
- * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
- */
+import org.firstinspires.ftc.robotcore.external.JavaUtil;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.GainControl;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 @Configurable
-@TeleOp(name="servo test", group="testing")
-public class servotest extends LinearOpMode {
+@TeleOp(name = "servo test", group = "Testing")
+public class servotest extends OpMode {
 
-    // Declare OpMode members for each of the 4 motors.
-    private ElapsedTime runtime = new ElapsedTime();
-    private Servo agigtator = null;
-    private Servo yaw1 = null;
-    private Servo yaw2 = null;
-    private Servo indexer = null;
-    public static double indexerposition = 0;
-    public static double yawposition = 0;
-    public static double agigtatorposition = 0;
+    private ServoEx indexer;
+    //
+    //private ServoEx pitch;
+
+    double position1 = 0;
+    double position2 = 240;
+    double position3 = 300;
+    double targetPosition = 0;
+
+    double[] INTAKE_POS = {0, 130, 270};
+    double[] SHOOT_POS = {position1, position2, position3};
+
+    int i = 0;
+    int s = 0;
 
     @Override
-    public void runOpMode() {
+    public void init() {
 
-        // Initialize the hardware variables. Note that the strings used here must correspond
-        // to the names assigned during the robot configuration step on the DS or RC devices.
-        yaw1 = hardwareMap.get(Servo.class, "yaw1");
-        yaw2 = hardwareMap.get(Servo.class, "yaw2");
-        agigtator = hardwareMap.get(Servo.class, "agigtator");
-        indexer = hardwareMap.get(Servo.class, "indexer");
+       indexer = new ServoEx(hardwareMap, "pitch", 0, 1800);
 
-        agigtator.setDirection(Servo.Direction.REVERSE);
-        //yaw2.setDirection(Servo.Direction.REVERSE);
+    }
 
-        // ########################################################################################
-        // !!!            IMPORTANT Drive Information. Test your motor directions.            !!!!!
-        // ########################################################################################
-        // Most robots need the motors on one side to be reversed to drive forward.
-        // The motor reversals shown here are for a "direct drive" robot (the wheels turn the same direction as the motor shaft)
-        // If your robot has additional gear reductions or uses a right-angled drive, it's important to ensure
-        // that your motors are turning in the correct direction.  So, start out with the reversals here, BUT
-        // when you first test your robot, push the left joystick forward and observe the direction the wheels turn.
-        // Reverse the direction (flip FORWARD <-> REVERSE ) of any wheel that runs backward
-        // Keep testing until ALL the wheels move the robot forward when you push the left joystick forward.
-        // Wait for the game to start (driver presses START)
-        telemetry.addData("Status", "Initialized");
+    @Override
+    public void init_loop() {
+
+    }
+
+    @Override
+    public void start() {
+    }
+
+    @Override
+    public void loop() {
+
+
+        if (gamepad1.yWasPressed()) {
+            targetPosition += 5;
+            position2 += 5;
+            position3 += 5;
+        } else if (gamepad1.aWasPressed()) {
+            targetPosition -= 5;
+            position2 -= 5;
+            position3 -= 5;
+        } else if (gamepad1.bWasPressed()) {
+            targetPosition += 100;
+            position2 += 100;
+            position3 += 100;
+        } else if (gamepad1.xWasPressed()) {
+            targetPosition -= 100;
+            position2 -= 100;
+            position3 -= 100;
+        }
+
+
+
+
+
+
+/*
+        // Indexer control
+        if (gamepad1.dpadRightWasPressed()) {
+            if (i < INTAKE_POS.length - 1) i++;
+            indexer.set(INTAKE_POS[i]);
+        } else if (gamepad1.dpadLeftWasPressed()) {
+            if (i > 0) i--;
+            indexer.set(INTAKE_POS[i]);
+        } else if (gamepad1.dpadUpWasPressed()) {
+            if (s < SHOOT_POS.length - 1) s++;
+            indexer.set(SHOOT_POS[s]);
+        } else if (gamepad1.dpadDownWasPressed()) {
+            if (s > 0) s--;
+            indexer.set(SHOOT_POS[s]);
+        }
+
+
+ */
+        if (gamepad1.dpadUpWasPressed()) {
+            indexer.set(targetPosition);
+        }
+
+        telemetry.addData("intake pos", INTAKE_POS[i]);
+        telemetry.addData("shoot pos", SHOOT_POS[s]);
+        telemetry.addData("targetPosition", targetPosition);
+
         telemetry.update();
 
-        waitForStart();
-        runtime.reset();
 
-        // run until the end of the match (driver presses STOP)
-        while (opModeIsActive()) {
-            yaw1.setPosition(yawposition);
-            yaw2.setPosition(yawposition);
-            agigtator.setPosition(agigtatorposition);
-            indexer.setPosition(indexerposition);
-        }
-    }}
+
+    }
+
+}
