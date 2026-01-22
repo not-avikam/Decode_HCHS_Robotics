@@ -4,17 +4,17 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.Pose;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.seattlesolvers.solverslib.drivebase.MecanumDrive;
 import com.seattlesolvers.solverslib.gamepad.GamepadEx;
-import com.seattlesolvers.solverslib.gamepad.GamepadKeys;
-import com.seattlesolvers.solverslib.hardware.AbsoluteAnalogEncoder;
+
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
 import com.seattlesolvers.solverslib.hardware.motors.Motor;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
@@ -26,20 +26,17 @@ import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.GainCon
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 @Configurable
 @TeleOp(name = "new bot axon", group = "lm2 2025")
 public class NEW_BOT_axon extends OpMode {
-    double detectedPitch = 0;
-
     // Adjustable shot parameters
-    public static double distanceToTarget = 58; // inches
     public static double launchAngleDeg = 45;   // degrees
     double hueIntake;
     private double adder = 200;
@@ -75,14 +72,14 @@ public class NEW_BOT_axon extends OpMode {
     public double turretTargetDeg = 0;
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
-    double atX;
-    double atY;
-    double imuHeading;
     double pitchAngle = 165;
     MecanumDrive mecanum;
     GamepadEx driverOp;
     boolean visionAvailable = false;
     boolean visionActive = false;
+    private Follower follower;
+    private Pose scorePose;
+    private Pose startingPose = new Pose(109.620, 94.685, Math.toRadians(270));;
     @Override
     public void init() {
 
@@ -145,6 +142,11 @@ public class NEW_BOT_axon extends OpMode {
         pitch.set(0);
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
 
+        follower = Constants.createFollower(hardwareMap);
+        follower.setStartingPose(startingPose);
+        follower.update();
+        telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
+
         initAprilTag();
 
         //purpleSoundID = hardwareMap.appContext.getResources().getIdentifier("purple", "raw", hardwareMap.appContext.getPackageName());
@@ -178,12 +180,10 @@ public class NEW_BOT_axon extends OpMode {
         telemetry.addData("Selected Alliance", currentAlliance == 0 ? "Red" : "Blue");
 
         if (gamepad1.dpadRightWasPressed()) {
-            goalX = 132;
-            goalY = 136;
+            scorePose = new Pose(132.12651646447142, 136.18370883882147);
             currentAlliance = 0;
         } else if (gamepad1.dpadLeftWasPressed()) {
-            goalX = 12;
-            goalY = 136;
+            scorePose = new Pose(11.585788561525153, 136.4332755632582);
             currentAlliance = 1;
         }
 
@@ -191,10 +191,12 @@ public class NEW_BOT_axon extends OpMode {
 
     @Override
     public void start() {
+        follower.startTeleopDrive();
     }
 
     @Override
     public void loop() {
+
         if (visionAvailable && !visionActive && visionPortal != null) {
             if (visionPortal.getCameraState() == VisionPortal.CameraState.STREAMING) {
                 visionActive = true;
@@ -210,114 +212,25 @@ public class NEW_BOT_axon extends OpMode {
             }
         }
 
-        mecanum.driveFieldCentric(
-                gamepad1.left_stick_x,  // forward
-                -gamepad1.left_stick_y,  // strafe
-                gamepad1.right_stick_x,  // turn
-                imu.getRobotYawPitchRollAngles().getYaw()
+        follower.setTeleOpDrive(
+                -gamepad1.left_stick_y,
+                -gamepad1.left_stick_x,
+                -gamepad1.right_stick_x,
+                false // Robot Centric
         );
-
-
-        /*
-
-        // DIAGNOSTIC TEST: Press buttons to see which wheel spins
-        if (gamepad1.a) frontLeftDrive.set(0.5);   // Should be Front Left
-        if (gamepad1.b) frontRightDrive.set(0.5);  // Should be Front Right
-        if (gamepad1.x) backLeftDrive.set(0.5);    // Should be Back Left
-        if (gamepad1.y) backRightDrive.set(0.5);   // Should be Back Right
-*/
-
 
         YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
 
         telemetryM.update();
-        //height = 60;
-
-        AprilTagDetection tag24 = null;
-        AprilTagDetection tag20 = null;
-
-        for (AprilTagDetection detection : aprilTag.getDetections()) {
-            if (detection.id == 24 && detection.metadata != null && currentAlliance == 0) {
-                tag24 = detection;
-                break; // lock onto ONLY tag 24
-            }
-
-            if (detection.id == 20 && detection.metadata != null && currentAlliance == 1) {
-                tag20 = detection;
-                break;
-            }
-
-        }
-
-        if (tag24 != null && currentAlliance == 0 && visionActive) {
-            atX = tag24.ftcPose.x;
-            atY = tag24.ftcPose.y;
-            imuHeading = orientation.getYaw(AngleUnit.DEGREES);
-
-            yaw1.set(tag24.ftcPose.bearing*.025);
-
-            distanceToTarget = tag24.ftcPose.range;
-
-            detectedPitch = 0;
-
-            if (gamepad1.left_trigger !=0) {
-                pitch.set(pitchAngle);
-            } else if (tag24.ftcPose.elevation < 35) {
-                pitch.set(detectedPitch);
-            } else if (tag24.ftcPose.elevation > 70) {
-                pitch.set(detectedPitch);
-            } else {
-                pitch.set(detectedPitch);
-            }
-
-            telemetry.addLine("tag detected - forcing pose reset");
-            telemetry.addLine("tag detected");
-        } else if (tag20 != null && currentAlliance == 1 && visionActive) {
-            atX = tag20.ftcPose.x;
-            atY = tag20.ftcPose.y;
-            imuHeading = orientation.getYaw(AngleUnit.DEGREES);
-
-            yaw1.set(tag20.ftcPose.bearing*.025);
-
-            distanceToTarget = tag20.ftcPose.range;
-
-            detectedPitch = 0;
-
-            if (gamepad1.left_trigger !=0) {
-                pitch.set(pitchAngle);
-            } else if (tag20.ftcPose.elevation < 35) {
-                pitch.set(detectedPitch);
-            } else if (tag20.ftcPose.elevation > 70) {
-                pitch.set(detectedPitch);
-            } else {
-                pitch.set(detectedPitch);
-            }
-
-            telemetry.addLine("tag detected - forcing pose reset");
-            telemetry.addLine("tag detected");
-        } else {
-            yaw1.set(driverOp.getRightY()*.5);
-            if (gamepad1.left_trigger == 0) {
-                pitch.set(detectedPitch);
-            }
-        }
-
-        if (gamepad1.left_trigger !=0) {
-            pitch.set(pitchAngle);
-        }
-
-        //pitch.set(pitchAngle);
-
-        if (gamepad1.backWasPressed()) {
-            imu.resetYaw();
-        }
 
         double theta = Math.toRadians(45);
+        double deltaX = follower.getPose().getX() - scorePose.getX();
+        double deltaY = follower.getPose().getY() - scorePose.getY();
+        double distanceToTarget = Math.sqrt(Math.pow(deltaX, 2) - Math.pow(deltaY, 2));
 
-        // Physics denominator
         double denom =
                 2 * Math.pow(Math.cos(theta), 2) *
-                        (distanceToTarget * Math.tan(theta) - 30);
+                        (distanceToTarget * Math.tan(theta) - height);
 
         // Compute required IPS safely
         if (denom > 0 && distanceToTarget > 0) {
@@ -334,16 +247,10 @@ public class NEW_BOT_axon extends OpMode {
             velocityTPS = 0;
         }
 
-        //launcher.setVelocity((velocityTPS + adder));
-
-        // Fire launcher
-        if (gamepad1.left_trigger != 0 && Double.isFinite(velocityTPS)) {
-            launcher.setVelocity((velocityTPS + adder)*driverOp.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER));
+        if (gamepad1.left_trigger !=0) {
+            launcher.setVelocity(velocityTPS*gamepad1.left_trigger);
             pitch.set(pitchAngle);
-        } else if (tag24 == null && tag20 == null){
-            launcher.setVelocity(2000*(driverOp.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER)));
         }
-
 
         // Agitator
         if (gamepad1.right_trigger != 0) {
@@ -434,7 +341,7 @@ public class NEW_BOT_axon extends OpMode {
 
         } catch (Exception e) {
             visionAvailable = false;
-            telemetry.addData("Error", e.getMessage());
+            telemetry.addData("Webcam not initialized", e.getMessage());
         }
     }
 
