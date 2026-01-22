@@ -57,12 +57,17 @@ public class Auton_Red extends OpMode {
     private static final int PPG_TAG_ID = 23;
     private static final int PGP_TAG_ID = 22;
     private static final int GPP_TAG_ID = 21;
-    public static int detected_obelisk = 23;
+
+    //ID | Pattern
+    //21 | GPP
+    //22 | PGP
+    //23 | PPG
+    private int detected_obelisk = 23;
     private MotorEx launcher = null;
-    private CRServoEx intake = null;
+    private Motor intake = null;
     private Servo agigtator = null;
     private ServoEx pitch = null;
-    private MotorEx yaw1 = null;
+    private ServoEx yaw1 = null;
     private IMU imu;
     private ServoEx indexer = null;
     NormalizedColorSensor colorSensor;
@@ -75,11 +80,10 @@ public class Auton_Red extends OpMode {
     private int shootBall;
     private int ballsShot = 0;
     private int intakeBall1, intakeBall2, intakeBall3;
-    private PathChain preload, grabPickup1, scorePickup1, grabPickup2, scorePickup2, grabPickup3, scorePickup3, goToHuman;
+    private PathChain score1, pickup1, score2, pickup2, score3, pickup3;
     double velocityIPS = 0;
     double velocityTPS = 1300;
     public static double launchAngleDeg = 45;   // degrees
-    public static double distanceToTarget = 60; // inches
     double atX;
     double atY;
     double imuHeading;
@@ -87,88 +91,70 @@ public class Auton_Red extends OpMode {
     private boolean pitchShoot = false;
     double pitchAngle = .12;
     private double adder = 200;
+    boolean visionAvailable = false;
+    boolean visionActive = false;
     public void buildPaths() {
 
-        preload = follower.pathBuilder().addPath(
+        pickup1 = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(87.000, 9.000),
+                                new Pose(87.562, 9.127),
 
-                                new Pose(102.241, 35.334)
+                                new Pose(115.742, 34.873)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(16))
 
                 .build();
 
-        grabPickup1 = follower.pathBuilder().addPath(
+        score1 = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(102.241, 35.334),
+                                new Pose(115.742, 34.873),
 
-                                new Pose(134.471, 35.329)
+                                new Pose(85.098, 20.667)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                ).setConstantHeadingInterpolation(Math.toRadians(45))
 
                 .build();
 
-        scorePickup1 = follower.pathBuilder().addPath(
-                        new BezierLine(
-                                new Pose(134.471, 35.329),
-
-                                new Pose(87.002, 9.116)
-                        )
-                ).setConstantHeadingInterpolation(Math.toRadians(0))
-
-                .build();
-
-        grabPickup2 = follower.pathBuilder().addPath(
+        pickup2 = follower.pathBuilder().addPath(
                         new BezierCurve(
-                                new Pose(87.002, 9.116),
-                                new Pose(69.177, 69.328),
-                                new Pose(133.710, 57.353)
+                                new Pose(85.098, 20.667),
+                                new Pose(100.224, 63.386),
+                                new Pose(116.587, 58.564)
                         )
-                ).setConstantHeadingInterpolation(Math.toRadians(0))
+                ).setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
 
                 .build();
 
-        scorePickup2 = follower.pathBuilder().addPath(
-                        new BezierLine(
-                                new Pose(133.710, 57.353),
-
-                                new Pose(81.000, 67.000)
-                        )
-                ).setConstantHeadingInterpolation(Math.toRadians(0))
-
-                .build();
-
-        grabPickup3 = follower.pathBuilder().addPath(
+        score2 = follower.pathBuilder().addPath(
                         new BezierCurve(
-                                new Pose(81.000, 67.000),
-                                new Pose(90.136, 82.616),
-                                new Pose(126.974, 84.855)
+                                new Pose(116.587, 58.564),
+                                new Pose(154.000, 80.000),
+                                new Pose(94.103, 52.793),
+                                new Pose(93.008, 84.110)
                         )
-                ).setConstantHeadingInterpolation(Math.toRadians(0))
+                ).setConstantHeadingInterpolation(Math.toRadians(90))
 
                 .build();
 
-        scorePickup3 = follower.pathBuilder().addPath(
+        pickup3 = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(126.974, 84.855),
+                                new Pose(93.008, 84.110),
 
-                                new Pose(111.196, 98.607)
+                                new Pose(125.820, 82.996)
                         )
-                ).setConstantHeadingInterpolation(Math.toRadians(0))
+                ).setTangentHeadingInterpolation()
 
                 .build();
 
-        goToHuman = follower.pathBuilder().addPath(
+        score3 = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(111.196, 98.607),
+                                new Pose(125.820, 82.996),
 
-                                new Pose(119.525, 70.201)
+                                new Pose(109.620, 94.685)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(90))
+                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(270))
 
                 .build();
-
     }
 
     public void autonomousPathUpdate() {
@@ -176,31 +162,14 @@ public class Auton_Red extends OpMode {
             case 0:
                 shootPreload();
                 if (ballsShot >= 3) {
-                    follower.followPath(preload, false);
+                    follower.followPath(pickup1, false);
                     setPathState(1);
                 }
                 break;
             case 1:
-
-                break;
-            case 2:
-            /* You could check for
-            - Follower State: "if(!follower.isBusy()) {}"
-            - Time: "if(pathTimer.getElapsedTimeSeconds() > 1) {}"
-            - Robot Position: "if(follower.getPose().getX() > 36) {}"
-            */
-
-                /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the scorePose's position */
-                if(!follower.isBusy()) {
-                    /* Score Preload */
-
-                    /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
-                    follower.followPath(grabPickup1,false);
-                    setPathState(3);
-                }
-                break;
-            case 3:
                 setIntakeBall1(0);
+                intakePGP();
+                /*
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -208,26 +177,27 @@ public class Auton_Red extends OpMode {
                 } else if (detected_obelisk == GPP_TAG_ID) {
                     intakeGPP();
                 }
+                */
                 /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the pickup1Pose's position */
                 if(!follower.isBusy()) {
                     /* Grab Sample */
 
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are scoring the sample */
-                    follower.followPath(scorePickup1,true);
-                    setPathState(4);
+                    follower.followPath(score1,true);
+                    setPathState(2);
                 }
                 break;
-            case 4:
+            case 2:
                 if(!follower.isBusy()) {
                     shoot();
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
                     if (shootBall >= 6){
-                        follower.followPath(grabPickup2,false);
-                        setPathState(5);
+                        follower.followPath(pickup2,false);
+                        setPathState(3);
                     }
                 }
                 break;
-            case 5:
+            case 3:
                 setIntakeBall2(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
@@ -241,22 +211,22 @@ public class Auton_Red extends OpMode {
                     /* Grab Sample */
 
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are scoring the sample */
-                    follower.followPath(scorePickup2,true);
-                    setPathState(6);
+                    follower.followPath(score2,true);
+                    setPathState(4);
                 }
                 break;
-            case 6:
+            case 4:
                 if(!follower.isBusy()) {
                     /* Score Sample */
                     shoot();
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
                     if (shootBall >= 6) {
-                        follower.followPath(grabPickup3,false);
-                        setPathState(7);
+                        follower.followPath(pickup3,false);
+                        setPathState(5);
                     }
                 }
                 break;
-            case 7:
+            case 5:
                 setIntakeBall3(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
@@ -266,20 +236,22 @@ public class Auton_Red extends OpMode {
                     intakeGPP();
                 }
                 if(!follower.isBusy()) {
+                    telemetry.addLine("Autonomous Routine Completed");
+                    telemetry.addLine("Good Luck!");
                     /* Grab Sample */
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are scoring the sample */
-                    follower.followPath(scorePickup3, true);
+                    follower.followPath(score3, true);
                     setPathState(8);
                 }
                 break;
             case 8:
                 setShootBall(0);
-                /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the scorePose's position */
                 if(!follower.isBusy()) {
                     shoot();
                     if (shootBall >= 6) {
-                        follower.followPath(goToHuman, true);
-                        /* Set the state to a Case we won't use or define, so it just stops running an new paths */
+                        telemetry.addLine("Autonomous Routine Completed");
+                        telemetry.addLine("Good Luck!");
+                        //follower.followPath(goToHuman, true);
                         setPathState(9);
                     }
                 }
@@ -298,6 +270,7 @@ public class Auton_Red extends OpMode {
                     telemetry.addLine("Good Luck!");
                 }
                 break;
+
         }
     }
 
@@ -669,17 +642,16 @@ public class Auton_Red extends OpMode {
     public void shootPreload() {
 
         if (detected_obelisk == GPP_TAG_ID) {
-            indexer.set(300);
+            indexer.set(295.5);
         } else {
             indexer.set(228);
         }
 
         switch (shootBall) {
-
             case 0:
                 follower.holdPoint(follower.getPose());
                 pitchShoot = true;
-                if ((launcher.getVelocity()) >= (1300-150) && launcher.getVelocity() <= (1300+250)) {
+                if ((launcher.getVelocity()) >= (velocityTPS-100) && launcher.getVelocity() <= (velocityTPS+100)) {
                     agigtator.setPosition(0);
                     ballsShot ++;
                     actionTimer.resetTimer();
@@ -707,7 +679,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 3:
-                if ((launcher.getVelocity()) >= (1300-150) && launcher.getVelocity() <= (1300+250) && actionTimer.getElapsedTimeSeconds() >= .5) {
+                if ((launcher.getVelocity()) >= (velocityTPS-100) && launcher.getVelocity() <= (velocityTPS+100) && actionTimer.getElapsedTimeSeconds() >= .5) {
                     agigtator.setPosition(0);
                     ballsShot ++;
                     actionTimer.resetTimer();
@@ -733,7 +705,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 6:
-                if ((launcher.getVelocity()) >= (velocityTPS-150) && launcher.getVelocity() <= (velocityTPS+250) && actionTimer.getElapsedTimeSeconds() > .5) {
+                if ((launcher.getVelocity()) >= (velocityTPS-100) && launcher.getVelocity() <= (velocityTPS+100) && actionTimer.getElapsedTimeSeconds() > .5) {
                     agigtator.setPosition(0);
                     ballsShot ++;
                     actionTimer.resetTimer();
@@ -773,40 +745,64 @@ public class Auton_Red extends OpMode {
     @Override
     public void loop() {
 
-        double height = 50;
+        double height = 30;
 
-        AprilTagDetection tag24 = null;
+        if (visionAvailable && !visionActive && visionPortal != null) {
+            if (visionPortal.getCameraState() == VisionPortal.CameraState.STREAMING) {
+                visionActive = true;
+                telemetry.addLine("vision active");
+                ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
+
+                GainControl gainControl = visionPortal.getCameraControl(GainControl.class);
+                gainControl.setGain(200);
+                if (exposureControl.getMode() != ExposureControl.Mode.Manual) {
+                    exposureControl.setMode(ExposureControl.Mode.Manual);
+                }
+                exposureControl.setExposure(2, TimeUnit.MILLISECONDS);
+            }
+        }
+
+        AprilTagDetection tag21 = null;
+        AprilTagDetection tag22 = null;
+        AprilTagDetection tag23 = null;
+
         for (AprilTagDetection detection : aprilTag.getDetections()) {
-            if (detection.id == 24 && detection.metadata != null) {
-                tag24 = detection;
+            if (detection.id == 21 && detection.metadata != null) {
+                tag21 = detection;
                 break; // lock onto ONLY tag 24
             }
-        }
 
-        if (tag24 != null) {
-            atX = tag24.ftcPose.x;
-            atY = tag24.ftcPose.y;
-            imuHeading = orientation.getYaw(AngleUnit.DEGREES);
-
-            yaw1.set(tag24.ftcPose.bearing*.03);
-
-            distanceToTarget = tag24.ftcPose.range;
-            if (gamepad1.left_trigger !=0) {
-                pitchAngle = 45*5.9;
-            } else if (tag24.ftcPose.elevation < 35) {
-                pitchAngle = 35 * 5.9;
-            } else if (tag24.ftcPose.elevation > 70) {
-                pitchAngle = 70 * 5.9;
-            } else {
-                pitchAngle = ((tag24.ftcPose.elevation*5.9)+30);
+            if (detection.id == 22 && detection.metadata != null) {
+                tag22 = detection;
+                break;
             }
 
-            telemetry.addLine("tag detected - forcing pose reset");
-            telemetry.addLine("tag detected");
+            if (detection.id == 23 && detection.metadata != null) {
+                tag23 = detection;
+                break;
+            }
+
         }
 
+        if (tag21 != null && follower.getCurrentPathChain() == pickup1) {
+            detected_obelisk = 21;
+        } else if (tag22 != null && follower.getCurrentPathChain() == pickup1) {
+            detected_obelisk = 22;
+        } else if (tag23 != null && follower.getCurrentPathChain() == pickup1) {
+            detected_obelisk = 23;
+        }
+
+
+        telemetry.addData("tuurret velocity", launcher.getVelocity());
+        telemetry.addData("sball", shootBall);
+        telemetry.update();
+
+
         pitch.set(pitchAngle);
-        double theta = Math.toRadians(pitchAngle);
+        double theta = Math.toRadians(45);
+        double deltaX = follower.getPose().getX() - 132.33092417423273;
+        double deltaY = follower.getPose().getY() - 136.3625744877852;
+        double distanceToTarget = Math.sqrt(Math.pow(deltaX, 2) - Math.pow(deltaY, 2));
 
         // Physics denominator
         double denom =
@@ -822,16 +818,19 @@ public class Auton_Red extends OpMode {
             velocityIPS = 0;
         }
 
-        // IPS -> TPS
         if (velocityIPS > 0) {
-            velocityTPS = 1300;
+            velocityTPS = Math.log(velocityIPS / 69.9) / 0.000821;
         } else {
-            velocityTPS = 1300;
+            velocityTPS = 0;
         }
 
-        pitch.set(35*5.9);
+        if (follower.getCurrentPathChain() == score1 || follower.getCurrentPathChain() == score2 || follower.getCurrentPathChain() == score3) {
+            launcher.setVelocity(velocityTPS);
+        }
 
-        launcher.setVelocity((1500));
+        if (follower.getCurrentPathChain() == pickup1 || follower.getCurrentPathChain() == pickup2 || follower.getCurrentPathChain() == pickup3) {
+            intake.set(1);
+        }
 
         // These loop the movements of the robot, these must be called continuously in order to work
         follower.update();
@@ -842,8 +841,6 @@ public class Auton_Red extends OpMode {
         } else {
             telemetry.addLine("follower is finished");
         }
-
-        // Feedback to Driver Hub
         telemetry.addData("launcher velocity target", velocityTPS);
         telemetry.addData("actual launcher velocity", launcher.getVelocity());
         telemetry.addData("distance to target", distanceToTarget);
@@ -863,13 +860,13 @@ public class Auton_Red extends OpMode {
     @Override
     public void init() {
         launcher = new MotorEx(hardwareMap, "launcher");
-        intake = new CRServoEx(hardwareMap, "intake");
+        intake = new Motor(hardwareMap, "intake");
         agigtator = hardwareMap.get(Servo.class, "agigtator");
         colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
         indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         imu = hardwareMap.get(IMU.class, "imu");
-        yaw1 = new MotorEx(hardwareMap, "yaw1");
+        yaw1 = new ServoEx(hardwareMap, "yaw1");
 
          orientation = imu.getRobotYawPitchRollAngles();
 
@@ -881,11 +878,6 @@ public class Auton_Red extends OpMode {
         // Now initialize the IMU with this mounting orientation
         // Note: if you choose two conflicting directions, this initialization will cause a code exception.
         imu.initialize(new IMU.Parameters(orientationOnRobot));
-
-        // set the run mode
-        yaw1.setRunMode(MotorEx.RunMode.RawPower);
-        yaw1.stopAndResetEncoder();
-        yaw1.setPositionCoefficient(0.05);
 
         shootBall = 0;
         ballsShot = 0;
@@ -955,56 +947,34 @@ public class Auton_Red extends OpMode {
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
         telemetry.addData("# AprilTags Detected", currentDetections.size());
 
-        for (AprilTagDetection detection : currentDetections) {
-
-            if (detection != null) {
-                if (detection.id == PPG_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
-                    detected_obelisk = PPG_TAG_ID;
-                    telemetry.addLine("Purple Purple Green detected");
-                } else if (detection.id == PGP_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
-                    detected_obelisk = PGP_TAG_ID;
-                    telemetry.addLine("Purple Green Purple detected");
-                } else if (detection.id == GPP_TAG_ID && ((detection.ftcPose.yaw > 15 && detection.ftcPose.yaw < 25) || (detection.ftcPose.yaw > -25 && detection.ftcPose.yaw < -15))) {
-                    detected_obelisk = GPP_TAG_ID;
-                    telemetry.addLine("Green Purple Purple detected");
-                } else {
-                    telemetry.addLine("No matching Tag Detected in range");
-                }
-            } else {
-                telemetry.addLine("No Tag Detected");
-                telemetry.addLine("Defaulting to Purple Purple Green");
-                detected_obelisk = PPG_TAG_ID;
-            }
-
-            telemetry.update();
-            }
+        telemetry.update();
     }
 
     /** We do not use this because everything should automatically disable **/
     @Override
     public void stop() {}
 
-    private void initAprilTag() {
-        // Create the AprilTag processor by using a builder.
-        aprilTag = new AprilTagProcessor.Builder()
-                .setDrawAxes(true)
-                .setDrawCubeProjection(true)
-                .setDrawTagOutline(true)
-                .setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
-                .build();
+    private void initAprilTag () {
+        try {
 
-        // Create the WEBCAM vision portal by using a builder.
-        visionPortal = new VisionPortal.Builder()
-                .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
-                .addProcessor(aprilTag)
-                .build();
+            aprilTag = new AprilTagProcessor.Builder()
+                    .setDrawAxes(true)
+                    .setDrawCubeProjection(true)
+                    .setDrawTagOutline(true)
+                    .setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
+                    .build();
 
-    }   // end method initAprilTag()
+            // Create the WEBCAM vision portal by using a builder.
+            visionPortal = new VisionPortal.Builder()
+                    .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
+                    .addProcessor(aprilTag)
+                    .build();
 
-    private Pose getRobotPoseFromCamera() {
-        //Fill this out to get the robot Pose from the camera's output (apply any filters if you need to using follower.getPose() for fusion)
-        //Pedro Pathing has built-in KalmanFilter and LowPassFilter classes you can use for this
-        //Use this to convert standard FTC coordinates to standard Pedro Pathing coordinates
-        return new Pose(atX, atY, imuHeading, FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE);
+            visionAvailable = true;
+
+        } catch (Exception e) {
+            visionAvailable = false;
+            telemetry.addData("Error", e.getMessage());
+        }
     }
 }
