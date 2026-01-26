@@ -1,63 +1,58 @@
 package org.firstinspires.ftc.teamcode; // make sure this aligns with class location
 
-import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
+import static com.pedropathing.math.MathFunctions.normalizeAngle;
+import static org.firstinspires.ftc.teamcode.NEW_BOT_axon.TICKS_PER_REV;
+import static org.firstinspires.ftc.teamcode.NEW_BOT_axon.TURRET_DEADBAND_DEG;
+
+import android.graphics.Color;
 
 import com.pedropathing.follower.Follower;
-import com.pedropathing.ftc.FTCCoordinates;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
-import com.pedropathing.geometry.PedroCoordinates;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.HeadingInterpolator;
 import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
-import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.hardware.SwitchableLight;
-import com.seattlesolvers.solverslib.drivebase.MecanumDrive;
-import com.seattlesolvers.solverslib.gamepad.GamepadEx;
-import com.seattlesolvers.solverslib.gamepad.GamepadKeys;
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
 import com.seattlesolvers.solverslib.hardware.motors.Motor;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
 import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
-import org.firstinspires.ftc.robotcore.external.hardware.camera.BuiltinCameraDirection;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.GainControl;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+import org.firstinspires.ftc.vision.opencv.Circle;
+import org.firstinspires.ftc.vision.opencv.ColorBlobLocatorProcessor;
+import org.firstinspires.ftc.vision.opencv.ColorRange;
+import org.firstinspires.ftc.vision.opencv.ImageRegion;
 
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
-@Autonomous(name="Auto Red HSI", group="lm2 2025")
-public class Auton_Red extends OpMode {
-
+@Autonomous(name="Far Auto Red HSI", group="lm2 2025")
+public class Auton_Red_Far extends OpMode {
     private static final boolean USE_WEBCAM = true;  // true for webcam, false for phone camera
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
+    ColorBlobLocatorProcessor colorLocator;
     private static final int PPG_TAG_ID = 23;
     private static final int PGP_TAG_ID = 22;
     private static final int GPP_TAG_ID = 21;
-
     //ID | Pattern
     //21 | GPP
     //22 | PGP
@@ -67,15 +62,17 @@ public class Auton_Red extends OpMode {
     private Motor intake = null;
     private Servo agigtator = null;
     private ServoEx pitch = null;
-    private ServoEx yaw1 = null;
+    private CRServoEx yaw1 = null;
+    private CRServoEx yaw2 = null;
+    private Motor turretEncoder;
     private IMU imu;
     private ServoEx indexer = null;
     NormalizedColorSensor colorSensor;
-    private final Pose startPose = new Pose(87,9, Math.toRadians(0));
+    private final Pose startPose = new Pose(87.562, 9.127, Math.toRadians(90));
     private double kP = .01;
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer, shootTimer;
-
+    private boolean visionPathActive = false;
     private int pathState;
     private int shootBall;
     private int ballsShot = 0;
@@ -84,53 +81,53 @@ public class Auton_Red extends OpMode {
     double velocityIPS = 0;
     double velocityTPS = 1300;
     public static double launchAngleDeg = 45;   // degrees
-    double atX;
-    double atY;
-    double imuHeading;
     YawPitchRollAngles orientation;
     private boolean pitchShoot = false;
     double pitchAngle = .12;
     private double adder = 200;
     boolean visionAvailable = false;
     boolean visionActive = false;
+    double getTurretAngleDeg() {
+        return (turretEncoder.getCurrentPosition() / TICKS_PER_REV) * 360.0;
+    }
     public void buildPaths() {
 
         pickup1 = follower.pathBuilder().addPath(
-                        new BezierLine(
+                        new BezierCurve(
                                 new Pose(87.562, 9.127),
-
-                                new Pose(115.742, 34.873)
+                                new Pose(88.172, 36.468),
+                                new Pose(115.742, 34.124)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(16))
+                ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(0))
 
                 .build();
 
         score1 = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(115.742, 34.873),
+                                new Pose(115.742, 34.124),
 
                                 new Pose(85.098, 20.667)
                         )
-                ).setConstantHeadingInterpolation(Math.toRadians(45))
+                ).setConstantHeadingInterpolation(Math.toRadians(0))
 
                 .build();
 
         pickup2 = follower.pathBuilder().addPath(
                         new BezierCurve(
                                 new Pose(85.098, 20.667),
-                                new Pose(100.224, 63.386),
-                                new Pose(116.587, 58.564)
+                                new Pose(83.004, 65.383),
+                                new Pose(116.338, 59.811)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
+                ).setConstantHeadingInterpolation(Math.toRadians(0))
 
                 .build();
 
         score2 = follower.pathBuilder().addPath(
                         new BezierCurve(
-                                new Pose(116.587, 58.564),
+                                new Pose(116.338, 59.811),
                                 new Pose(154.000, 80.000),
                                 new Pose(94.103, 52.793),
-                                new Pose(93.008, 84.110)
+                                new Pose(95.503, 83.361)
                         )
                 ).setConstantHeadingInterpolation(Math.toRadians(90))
 
@@ -138,9 +135,9 @@ public class Auton_Red extends OpMode {
 
         pickup3 = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(93.008, 84.110),
+                                new Pose(95.503, 83.361),
 
-                                new Pose(125.820, 82.996)
+                                new Pose(118.583, 83.994)
                         )
                 ).setTangentHeadingInterpolation()
 
@@ -148,7 +145,7 @@ public class Auton_Red extends OpMode {
 
         score3 = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(125.820, 82.996),
+                                new Pose(118.583, 83.994),
 
                                 new Pose(109.620, 94.685)
                         )
@@ -167,9 +164,8 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 1:
-                setIntakeBall1(0);
-                intakePGP();
-                /*
+                setIntakeBall3(0);
+
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -177,7 +173,7 @@ public class Auton_Red extends OpMode {
                 } else if (detected_obelisk == GPP_TAG_ID) {
                     intakeGPP();
                 }
-                */
+
                 /* This case checks the robot's position and will wait until the robot position is close (1 inch away) from the pickup1Pose's position */
                 if(!follower.isBusy()) {
                     /* Grab Sample */
@@ -227,7 +223,7 @@ public class Auton_Red extends OpMode {
                 }
                 break;
             case 5:
-                setIntakeBall3(0);
+                setIntakeBall1(0);
                 if (detected_obelisk == PPG_TAG_ID) {
                     intakePPG();
                 } else if (detected_obelisk == PGP_TAG_ID) {
@@ -251,24 +247,39 @@ public class Auton_Red extends OpMode {
                     if (shootBall >= 6) {
                         telemetry.addLine("Autonomous Routine Completed");
                         telemetry.addLine("Good Luck!");
-                        //follower.followPath(goToHuman, true);
+                        indexer.set(0);
                         setPathState(9);
                     }
                 }
                 break;
             case 9:
-                if (detected_obelisk == PPG_TAG_ID) {
-                    intakePPG();
-                } else if (detected_obelisk == PGP_TAG_ID) {
-                    intakePGP();
-                } else if (detected_obelisk == GPP_TAG_ID) {
-                    intakeGPP();
+                Pose tunnel = new Pose(125.12998, 45.43501);
+                Pose toScore = new Pose(93.18544, 12.24263);
+
+                Path toTunnel = new Path(new BezierLine(follower.getPose(), tunnel));
+                Path toScorePath = new Path(new BezierLine(follower.getPose(), toScore));
+
+                toTunnel.setLinearHeadingInterpolation(follower.getHeading(), 0);
+
+                // Step 1: vision intake
+                if (intakeBall1 < 2) {
+                    finalIntake();
+                    break;
                 }
-                if (intakeBall3 == 3) {
-                    setPathState(-1);
-                    telemetry.addLine("Autonomous Routine Completed");
-                    telemetry.addLine("Good Luck!");
+
+                // Step 2: go to tunnel
+                if (intakeBall1 == 2 && !follower.isBusy()) {
+                    follower.followPath(toTunnel, true);
+                    setIntakeBall1(3);
+                    break;
                 }
+
+                // Step 3: score
+                if (intakeBall1 == 3 && !follower.isBusy()) {
+                    follower.followPath(toScorePath);
+                    setIntakeBall1(4);
+                }
+
                 break;
 
         }
@@ -546,6 +557,33 @@ public class Auton_Red extends OpMode {
 
     }
 
+    public void finalIntake() {
+        if (!follower.isBusy() && intakeBall1 < 2) {
+            driveToClosestArtifact();
+        }
+
+        intake.set(1);
+
+        double hue;
+        NormalizedRGBA colors = colorSensor.getNormalizedColors();
+        hue = JavaUtil.colorToHue(colors.toColor());
+
+        switch (intakeBall1) {
+            case 1:
+                if ((hue > 225 && hue < 350) || (hue > 90 && hue < 150)) {
+                    indexer.set(295.5);
+                    setIntakeBall1(2);
+                }
+                break;
+
+            case 2:
+                telemetry.addLine("balls in");
+                setIntakeBall1(3);
+                break;
+        }
+    }
+
+
     public void setIntakeBall1(int iBall) {
         intakeBall1 = iBall;
     }
@@ -798,11 +836,19 @@ public class Auton_Red extends OpMode {
         telemetry.update();
 
 
-        pitch.set(pitchAngle);
+
         double theta = Math.toRadians(45);
-        double deltaX = follower.getPose().getX() - 132.33092417423273;
+        double deltaX = follower.getPose().getX() - 13.287596617906903;
         double deltaY = follower.getPose().getY() - 136.3625744877852;
-        double distanceToTarget = Math.sqrt(Math.pow(deltaX, 2) - Math.pow(deltaY, 2));
+        double distanceToTarget = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
+
+        if (distanceToTarget >= 120) {
+            theta = Math.toRadians(30);
+            pitch.set(30*5.9);
+        } else {
+            theta = Math.toRadians(45);
+            pitch.set(165);
+        }
 
         // Physics denominator
         double denom =
@@ -824,12 +870,33 @@ public class Auton_Red extends OpMode {
             velocityTPS = 0;
         }
 
+        double targetFieldAngleDeg = Math.toDegrees(Math.atan2(-deltaY, -deltaX));
+        double currentTurretWorldHeading = Math.toDegrees(follower.getHeading()) + getTurretAngleDeg();
+        double errorAngle = targetFieldAngleDeg - currentTurretWorldHeading;
+        errorAngle = normalizeAngle(errorAngle);
+
+        if (Math.abs(errorAngle) > TURRET_DEADBAND_DEG) {
+            double turretPower = errorAngle * 0.02;
+
+            turretPower = Math.max(-1.0, Math.min(1.0, turretPower));
+
+            yaw1.set(turretPower);
+            yaw2.set(turretPower);
+        } else {
+            yaw1.set(0);
+            yaw2.set(0);
+        }
+
         if (follower.getCurrentPathChain() == score1 || follower.getCurrentPathChain() == score2 || follower.getCurrentPathChain() == score3) {
             launcher.setVelocity(velocityTPS);
         }
 
         if (follower.getCurrentPathChain() == pickup1 || follower.getCurrentPathChain() == pickup2 || follower.getCurrentPathChain() == pickup3) {
             intake.set(1);
+        }
+
+        if (!follower.isBusy()) {
+            visionPathActive = false;
         }
 
         // These loop the movements of the robot, these must be called continuously in order to work
@@ -866,9 +933,13 @@ public class Auton_Red extends OpMode {
         indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         imu = hardwareMap.get(IMU.class, "imu");
-        yaw1 = new ServoEx(hardwareMap, "yaw1");
+        yaw1 = new CRServoEx(hardwareMap, "yaw1");
+        yaw2 = new CRServoEx(hardwareMap, "yaw2");
+        turretEncoder = new Motor(hardwareMap, "turretEncoder");
 
-         orientation = imu.getRobotYawPitchRollAngles();
+        yaw2.setInverted(true);
+
+        orientation = imu.getRobotYawPitchRollAngles();
 
         RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.RIGHT;
         RevHubOrientationOnRobot.UsbFacingDirection  usbDirection  = RevHubOrientationOnRobot.UsbFacingDirection.UP;
@@ -889,8 +960,6 @@ public class Auton_Red extends OpMode {
         intake.setInverted(true);
 
         launcher.setRunMode(MotorEx.RunMode.VelocityControl);
-
-        //pitch.set(1462.5);
 
         //turns on brake mode
         //brake mode gives motors power in the opposite direction in order to make them stop faster
@@ -916,7 +985,7 @@ public class Auton_Red extends OpMode {
         follower.setStartingPose(startPose);
 
         indexer.set(0);
-        pitch.set(70*5.9);
+        pitch.set(0);
         agigtator.setPosition(0.3);
 
     }
@@ -950,10 +1019,6 @@ public class Auton_Red extends OpMode {
         telemetry.update();
     }
 
-    /** We do not use this because everything should automatically disable **/
-    @Override
-    public void stop() {}
-
     private void initAprilTag () {
         try {
 
@@ -964,10 +1029,27 @@ public class Auton_Red extends OpMode {
                     .setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
                     .build();
 
+            colorLocator = new ColorBlobLocatorProcessor.Builder()
+                    .setTargetColorRange(ColorRange.ARTIFACT_PURPLE)   // Use a predefined color match
+                    .setContourMode(ColorBlobLocatorProcessor.ContourMode.EXTERNAL_ONLY)
+                    .setRoi(ImageRegion.entireFrame())
+                    .setDrawContours(true)   // Show contours on the Stream Preview
+                    .setBoxFitColor(0)       // Disable the drawing of rectangles
+                    .setCircleFitColor(Color.rgb(255, 255, 0)) // Draw a circle
+                    .setBlurSize(5)          // Smooth the transitions between different colors in image
+
+                    // the following options have been added to fill in perimeter holes.
+                    .setDilateSize(15)       // Expand blobs to fill any divots on the edges
+                    .setErodeSize(15)        // Shrink blobs back to original size
+                    .setMorphOperationType(ColorBlobLocatorProcessor.MorphOperationType.CLOSING)
+
+                    .build();
+
             // Create the WEBCAM vision portal by using a builder.
             visionPortal = new VisionPortal.Builder()
                     .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
                     .addProcessor(aprilTag)
+                    .addProcessor(colorLocator)
                     .build();
 
             visionAvailable = true;
@@ -976,5 +1058,73 @@ public class Auton_Red extends OpMode {
             visionAvailable = false;
             telemetry.addData("Error", e.getMessage());
         }
+    }
+
+    private ColorBlobLocatorProcessor.Blob getClosestArtifact() {
+        List<ColorBlobLocatorProcessor.Blob> blobs = colorLocator.getBlobs();
+        ColorBlobLocatorProcessor.Blob bestBlob = null;
+        double maxRadius = 0;
+
+        for (ColorBlobLocatorProcessor.Blob b : blobs) {
+            double r = b.getCircle().getRadius();
+            if (r > maxRadius) {
+                maxRadius = r;
+                bestBlob = b;
+            }
+        }
+        return bestBlob;
+    }
+
+    private Pose getArtifactTargetPose(ColorBlobLocatorProcessor.Blob blob) {
+        Circle c = blob.getCircle();
+
+        double imageWidth = 640;
+        double centerX = imageWidth / 2.0;
+
+        double xErrorPixels = c.getX() - centerX;
+
+        // Tunables
+        double degreesPerPixel = 0.045;   // tune this
+        double inchesPerRadius = 0.14;   // tune this
+
+        double rawHeadingDeg = xErrorPixels * degreesPerPixel;
+        rawHeadingDeg = Math.max(-15, Math.min(15, rawHeadingDeg));
+        double headingOffset = Math.toRadians(rawHeadingDeg);
+
+        double distance = Math.min(c.getRadius() * inchesPerRadius, 12);
+
+        Pose robotPose = follower.getPose();
+
+        double targetX = robotPose.getX() + distance * Math.cos(robotPose.getHeading() + headingOffset);
+        double targetY = robotPose.getY() + distance * Math.sin(robotPose.getHeading() + headingOffset);
+
+        return new Pose(
+                targetX,
+                targetY,
+                robotPose.getHeading() + headingOffset
+        );
+    }
+
+    public void driveToClosestArtifact() {
+        if (visionPathActive) return;
+
+        ColorBlobLocatorProcessor.Blob blob = getClosestArtifact();
+        if (blob == null) return;
+
+        Pose target = getArtifactTargetPose(blob);
+
+        Path toArtifact = new Path(
+                new BezierLine(follower.getPose(), target)
+        );
+
+        if (blob.getCircle().getRadius() < 10) return;
+
+        follower.followPath(toArtifact, true);
+        visionPathActive = true;
+    }
+
+    @Override
+    public void stop() {
+        PoseStorage.currentPose = follower.getPose();
     }
 }
