@@ -155,6 +155,7 @@ public class autoaimtest extends OpMode {
         if (launcher.getVelocity() >= 2300) {
             gamepad1.rumble(1000);
         }
+        return 0;
     }
 
                 // The following default settings are available to un-comment and edit as needed.
