@@ -347,6 +347,7 @@ public class launcher_velocity_calculator extends OpMode {
 
         telemetry.update();
 
+        //return theta;
     }
 
     private void initAprilTag() {

@@ -34,6 +34,10 @@ import java.util.concurrent.TimeUnit;
 @Configurable
 @Autonomous(name = "new bot auton", group = "lm2 2025")
 public class lm3_decode extends OpMode {
+    boolean visionAvailable = false;
+    boolean visionActive = false;
+    private AprilTagProcessor aprilTag;
+    private VisionPortal visionPortal;
 
     private Motor frontLeftDrive = null;
     private Motor backLeftDrive = null;
@@ -46,6 +50,12 @@ public class lm3_decode extends OpMode {
     private Timer actionTimer;
     private Servo agigtator;
     int shootBall;
+
+    //ID | Pattern
+    //21 | GPP
+    //22 | PGP
+    //23 | PPG
+    int currentPattern = 23;
     double targetVelocity = 2000;
     double[] SHOOT_POS = {162, 228, 295.5};
 
@@ -88,10 +98,53 @@ public class lm3_decode extends OpMode {
 
     @Override
     public void loop() {
-        pitch.set(155);
+        if (visionAvailable && !visionActive && visionPortal != null) {
+            if (visionPortal.getCameraState() == VisionPortal.CameraState.STREAMING) {
+                visionActive = true;
+                telemetry.addLine("vision active");
+                ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
 
+                GainControl gainControl = visionPortal.getCameraControl(GainControl.class);
+                gainControl.setGain(200);
+                if (exposureControl.getMode() != ExposureControl.Mode.Manual) {
+                    exposureControl.setMode(ExposureControl.Mode.Manual);
+                }
+                exposureControl.setExposure(2, TimeUnit.MILLISECONDS);
+            }
+        }
 
-        launcher.set(targetVelocity);
+        AprilTagDetection tag21 = null;
+        AprilTagDetection tag22 = null;
+        AprilTagDetection tag23 = null;
+
+        for (AprilTagDetection detection : aprilTag.getDetections()) {
+            if (detection.id == 21 && detection.metadata != null) {
+                tag21 = detection;
+                break; // lock onto ONLY tag 24
+            }
+
+            if (detection.id == 22 && detection.metadata != null) {
+                tag22 = detection;
+                break;
+            }
+
+            if (detection.id == 23 && detection.metadata != null) {
+                tag23 = detection;
+                break;
+            }
+
+        }
+        /*
+
+        if (tag21 != null && ) {
+            currentPattern = 21;
+        } else if (tag22 != null && ) {
+            currentPattern = 22;
+        } else if (tag23 != null && ) {
+            currentPattern = 23;
+        }
+
+         */
 
         switch (shootBall) {
 
@@ -166,14 +219,42 @@ public class lm3_decode extends OpMode {
         }
 
 
-        telemetry.addData("tuurret velocity", launcher.getVelocity());
-        telemetry.addData("sball", shootBall);
-        telemetry.update();
+            telemetry.addData("tuurret velocity", launcher.getVelocity());
+            telemetry.addData("sball", shootBall);
+            telemetry.update();
 
 
-    }
+        }
 
-    public void setShootBall(int sBall) {
-        shootBall = sBall;
-    }
+        public void setShootBall ( int sBall){
+            shootBall = sBall;
+        }
+
+        public void shootBallSorted () {
+
+        }
+
+        private void initAprilTag () {
+            try {
+
+                aprilTag = new AprilTagProcessor.Builder()
+                        .setDrawAxes(true)
+                        .setDrawCubeProjection(true)
+                        .setDrawTagOutline(true)
+                        .setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
+                        .build();
+
+                // Create the WEBCAM vision portal by using a builder.
+                visionPortal = new VisionPortal.Builder()
+                        .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
+                        .addProcessor(aprilTag)
+                        .build();
+
+                visionAvailable = true;
+
+            } catch (Exception e) {
+                visionAvailable = false;
+                telemetry.addData("Error", e.getMessage());
+            }
+        }
 }

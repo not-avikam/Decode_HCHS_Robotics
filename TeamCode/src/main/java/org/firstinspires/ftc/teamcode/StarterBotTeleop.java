@@ -230,6 +230,7 @@ public class StarterBotTeleop extends OpMode {
         telemetry.addData("Motors", "left (%.2f), right (%.2f)", leftPower, rightPower);
         telemetry.addData("motorSpeed", launcher.getVelocity());
 
+        //return 0;
     }
 
     /*

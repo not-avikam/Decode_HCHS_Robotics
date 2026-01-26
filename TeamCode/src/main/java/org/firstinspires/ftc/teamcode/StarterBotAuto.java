@@ -384,6 +384,7 @@ public class StarterBotAuto extends OpMode
         telemetry.addData("Motor Target Positions", "left (%d), right (%d)",
                 leftDrive.getTargetPosition(), rightDrive.getTargetPosition());
         telemetry.update();
+        //return 0;
     }
 
     /*

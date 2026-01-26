@@ -260,6 +260,7 @@ public class RI3DPP_Blue extends OpMode {
         if (gamepad1.left_trigger != 0) {
             follower.followPath(score);
         }
+        //return distanceToTarget;
     }
 
     void agigtate(boolean agigtateRequested) {

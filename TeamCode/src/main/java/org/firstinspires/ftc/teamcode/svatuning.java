@@ -68,6 +68,7 @@ public class svatuning extends OpMode {
         panelsTelemetry.addData("Velocity actual", launcher.getVelocity());
 
         panelsTelemetry.update();
+        //return 0;
     }
 
 }

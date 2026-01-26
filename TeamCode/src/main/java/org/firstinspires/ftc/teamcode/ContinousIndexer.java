@@ -166,5 +166,6 @@ public class ContinousIndexer extends OpMode {
         panelsTelemetry.addData("Next Intake Color", indexIntake.name());
         panelsTelemetry.addData("Next Shoot Color", indexShoot.name());
         panelsTelemetry.update(telemetry);
+        //return 0;
     }
 }

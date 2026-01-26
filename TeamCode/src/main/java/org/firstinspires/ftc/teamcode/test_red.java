@@ -342,6 +342,7 @@ public class test_red extends OpMode {
                     break;
             }
         }
+        //return 0;
     }
 /*
     private void initAprilTag() {
