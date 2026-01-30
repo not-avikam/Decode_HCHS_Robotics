@@ -800,36 +800,23 @@ public class Auton_Red_Far extends OpMode {
             }
         }
 
-        AprilTagDetection tag21 = null;
-        AprilTagDetection tag22 = null;
-        AprilTagDetection tag23 = null;
+        AprilTagDetection leftmostTag = null;
+        double minBearing = Double.MAX_VALUE;
 
         for (AprilTagDetection detection : aprilTag.getDetections()) {
-            if (detection.id == 21 && detection.metadata != null) {
-                tag21 = detection;
-                break; // lock onto ONLY tag 24
-            }
 
-            if (detection.id == 22 && detection.metadata != null) {
-                tag22 = detection;
-                break;
-            }
+            if (detection.metadata != null && detection.id >= 21 && detection.id <= 23) {
 
-            if (detection.id == 23 && detection.metadata != null) {
-                tag23 = detection;
-                break;
+                if (detection.ftcPose.bearing < minBearing) {
+                    minBearing = detection.ftcPose.bearing;
+                    leftmostTag = detection;
+                }
             }
-
         }
 
-        if (tag21 != null && follower.getCurrentPathChain() == pickup1) {
-            detected_obelisk = 21;
-        } else if (tag22 != null && follower.getCurrentPathChain() == pickup1) {
-            detected_obelisk = 22;
-        } else if (tag23 != null && follower.getCurrentPathChain() == pickup1) {
-            detected_obelisk = 23;
+        if (leftmostTag != null && follower.getCurrentPathChain() == pickup1) {
+            detected_obelisk = leftmostTag.id;
         }
-
 
         telemetry.addData("tuurret velocity", launcher.getVelocity());
         telemetry.addData("sball", shootBall);
