@@ -825,7 +825,7 @@ public class Auton_Red_Far extends OpMode {
 
 
         double theta = Math.toRadians(45);
-        double deltaX = follower.getPose().getX() - 13.287596617906903;
+        double deltaX = follower.getPose().getX() - 132.12651646447142;
         double deltaY = follower.getPose().getY() - 136.3625744877852;
         double distanceToTarget = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
 
