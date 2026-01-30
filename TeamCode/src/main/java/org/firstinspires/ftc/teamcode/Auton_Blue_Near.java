@@ -161,7 +161,7 @@ public class Auton_Blue_Near extends OpMode {
             case 0:
                     follower.followPath(pickup1, false);
                     Pose preloadPose = new Pose(48,86);
-                    if (Objects.equals(follower.getPose(), preloadPose)) {
+                    if (follower.getPose() == preloadPose) {
                         follower.pausePathFollowing();
                         shootPreload();
                         if (shootBall >= 6) {
