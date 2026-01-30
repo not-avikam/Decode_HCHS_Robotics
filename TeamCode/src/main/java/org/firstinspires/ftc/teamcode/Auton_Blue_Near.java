@@ -807,34 +807,22 @@ public class Auton_Blue_Near extends OpMode {
             }
         }
 
-        AprilTagDetection tag21 = null;
-        AprilTagDetection tag22 = null;
-        AprilTagDetection tag23 = null;
+        AprilTagDetection rightmostTag = null;
+        double maxBearing = -Double.MAX_VALUE; // Start with a very small number
 
         for (AprilTagDetection detection : aprilTag.getDetections()) {
-            if (detection.id == 21 && detection.metadata != null) {
-                tag21 = detection;
-                break; // lock onto ONLY tag 24
-            }
+            if (detection.metadata != null && detection.id >= 21 && detection.id <= 23) {
 
-            if (detection.id == 22 && detection.metadata != null) {
-                tag22 = detection;
-                break;
+                // We want the HIGHEST bearing value (furthest right)
+                if (detection.ftcPose.bearing > maxBearing) {
+                    maxBearing = detection.ftcPose.bearing;
+                    rightmostTag = detection;
+                }
             }
-
-            if (detection.id == 23 && detection.metadata != null) {
-                tag23 = detection;
-                break;
-            }
-
         }
 
-        if (tag21 != null && follower.getCurrentPathChain() == pickup1) {
-            detected_obelisk = 21;
-        } else if (tag22 != null && follower.getCurrentPathChain() == pickup1) {
-            detected_obelisk = 22;
-        } else if (tag23 != null && follower.getCurrentPathChain() == pickup1) {
-            detected_obelisk = 23;
+        if (rightmostTag != null && follower.getCurrentPathChain() == pickup1) {
+            detected_obelisk = rightmostTag.id;
         }
 
 
