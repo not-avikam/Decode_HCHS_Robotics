@@ -24,11 +24,12 @@ import org.firstinspires.ftc.vision.opencv.Circle;
 import org.firstinspires.ftc.vision.opencv.ColorBlobLocatorProcessor;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-@Autonomous(name="Near Auto Blue HSI", group="lm2 2025")
+@Autonomous(name="Near Blue", group="lcq")
 public class Auton_Blue_Near extends OpMode {
     private Motor turretEncoder;
     private VisionPortal visionPortal;
     ColorBlobLocatorProcessor colorLocator;
+    private Servo light;
     private MotorEx launcher = null;
     private Motor intake = null;
     private Servo trigger = null;
@@ -319,6 +320,7 @@ public class Auton_Blue_Near extends OpMode {
         trigger = hardwareMap.get(Servo.class, "trigger");
         colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
+        light = hardwareMap.get(Servo.class, "light");
         yaw1 = new CRServoEx(hardwareMap, "yaw1");
         turretEncoder = new Motor(hardwareMap, "turretEncoder");
 
@@ -430,8 +432,10 @@ public class Auton_Blue_Near extends OpMode {
         if (visionPathActive) return;
 
         ColorBlobLocatorProcessor.Blob blob = getClosestArtifact();
-        if (blob == null) return;
-
+        if (blob == null) {
+            light.setPosition(.277);
+            return;
+        }
         Pose target = getArtifactTargetPose(blob);
 
         Path toArtifact = new Path(
