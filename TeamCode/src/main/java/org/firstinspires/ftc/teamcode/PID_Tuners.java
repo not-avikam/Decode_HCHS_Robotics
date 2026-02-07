@@ -4,7 +4,7 @@ import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.gam
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
 
 import com.bylazar.configurables.annotations.Configurable;
-import com.bylazar.graph.PanelsGraph;
+//import com.bylazar.graph.PanelsGraph;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.bylazar.configurables.PanelsConfigurables;

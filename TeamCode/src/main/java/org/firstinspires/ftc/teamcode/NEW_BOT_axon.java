@@ -2,14 +2,18 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.seattlesolvers.solverslib.util.MathUtils.clamp;
 import static java.lang.Math.cos;
+
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
+import com.pedropathing.ftc.FTCCoordinates;
+import com.pedropathing.geometry.PedroCoordinates;
 import com.pedropathing.geometry.Pose;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
@@ -17,12 +21,13 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
 import com.seattlesolvers.solverslib.controller.SquIDFController;
 import com.seattlesolvers.solverslib.controller.wpilibcontroller.SimpleMotorFeedforward;
+import com.seattlesolvers.solverslib.drivebase.MecanumDrive;
 import com.seattlesolvers.solverslib.gamepad.GamepadEx;
-
 import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
 import com.seattlesolvers.solverslib.hardware.motors.Motor;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
 import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
+import com.seattlesolvers.solverslib.util.InterpLUT;
 
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
@@ -33,13 +38,23 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
-import com.seattlesolvers.solverslib.util.InterpLUT;
 
 import java.util.concurrent.TimeUnit;
 
 @Configurable
 @TeleOp(name = "new bot axon", group = "lm2 2025")
 public class NEW_BOT_axon extends OpMode {
+    // ---- Turret Constants ----
+    public static double TURRET_KP = 0.01;
+    public static double TURRET_KD = 0.002;
+    public static double TURRET_DEADBAND_DEG = 1.0;
+    public static double TICKS_PER_REV = 4314; // turret output ticks
+
+    // ---- Turret State ----
+    private double lastTurretError = 0;
+    private double turretZeroOffsetDeg = 0;
+    private boolean turretZeroed = false;
+
     double hueIntake;
     private double adder = 200;
     private int indexerColor1 = 3;
@@ -48,7 +63,7 @@ public class NEW_BOT_axon extends OpMode {
     private DistanceSensor distanceSensor;
     NormalizedColorSensor colorSensorIntake;
     private MotorEx launcher;
-    private CRServoEx intake;
+    private Motor intake;
     private Servo agigtator;
     private ServoImplEx light;
     private ServoEx indexer;
@@ -63,15 +78,11 @@ public class NEW_BOT_axon extends OpMode {
     int currentAlliance = 0;
     double velocityIPS = 0;
     double velocityTPS = 0;
-    private TelemetryManager telemetryM;
     private TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
     IMU imu;
     private Motor turretEncoder;
     private CRServoEx yaw1 = null;
-    private CRServoEx yaw2 = null;
     public static double height = 35;
-    public static double TICKS_PER_REV = 384.5; // adjust for gearing
-    public static double TURRET_DEADBAND_DEG = 1.0;
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
     GamepadEx driverOp;
@@ -79,15 +90,20 @@ public class NEW_BOT_axon extends OpMode {
     boolean visionActive = false;
     double theta = 30*5.9;
     private Follower follower;
-    private Pose scorePose;
+    private Pose scorePose = new Pose(132.12651646447142, 136.18370883882147);
     private Pose startingPose = new Pose(87.562, 9.127, Math.toRadians(90));
     public static double kS = 0;
     public static double kV = 0;
     SquIDFController squidfController;
+    private MotorEx frontLeft;
+    private MotorEx frontRight;
+    private MotorEx backLeft;
+    private MotorEx backRight;
     InterpLUT lut;
-    double getTurretAngleDeg() {
+    double getTurretAngleDegRaw() {
         return (turretEncoder.getCurrentPosition() / TICKS_PER_REV) * 360.0;
     }
+
     double normalizeAngle(double angle) {
         while (angle > 180) angle -= 360;
         while (angle < -180) angle += 360;
@@ -97,12 +113,12 @@ public class NEW_BOT_axon extends OpMode {
     public static double kF = .2;
 
     private boolean slowMode = false;
-
+    MecanumDrive mecanum;
     @Override
     public void init() {
 
         launcher = new MotorEx(hardwareMap, "launcher");
-        intake = new CRServoEx(hardwareMap, "intake");
+        intake = new Motor(hardwareMap, "intake");
         agigtator = hardwareMap.get(Servo.class, "agigtator");
         colorSensorIntake = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
         indexer = new ServoEx(hardwareMap, "indexer", 0, 300);
@@ -110,12 +126,22 @@ public class NEW_BOT_axon extends OpMode {
         linearServo1 = new CRServoEx(hardwareMap, "linearServo1");
         linearServo2 = new CRServoEx(hardwareMap, "linearServo2");
         light = hardwareMap.get(ServoImplEx.class, "light");
+        frontLeft = new MotorEx(hardwareMap, "frontLeft");
+        frontRight = new MotorEx(hardwareMap, "frontRight");
+        backLeft = new MotorEx(hardwareMap, "backLeft");
+        backRight = new MotorEx(hardwareMap, "backRight");
         distanceSensor = hardwareMap.get(DistanceSensor.class, "distanceSensor");
         imu = hardwareMap.get(IMU.class, "imu");
         yaw1 = new CRServoEx(hardwareMap, "yaw1");
-        yaw2 = new CRServoEx(hardwareMap, "yaw2");
         turretEncoder = new Motor(hardwareMap, "turretEncoder");
         driverOp = new GamepadEx(gamepad1);
+
+        frontLeft.setInverted(false);
+        backLeft.setInverted(false);
+        backRight.setInverted(true);
+        frontRight.setInverted(true);
+
+
 
         squidfController = new SquIDFController(
                 .6,  // kP
@@ -123,6 +149,11 @@ public class NEW_BOT_axon extends OpMode {
                 0, // kD
                 kF   // kF
         );
+
+        turretEncoder.setRunMode(Motor.RunMode.RawPower);
+        turretEncoder.setZeroPowerBehavior(Motor.ZeroPowerBehavior.FLOAT);
+        turretEncoder.setInverted(false); // change to true if angle moves backwards
+        turretEncoder.stopAndResetEncoder();
 
 
         RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.RIGHT;
@@ -136,7 +167,7 @@ public class NEW_BOT_axon extends OpMode {
 
         // set the run mode
 
-        intake.setInverted(false);
+        intake.setInverted(true);
         //agigtator.setDirection(Servo.Direction.REVERSE);
 
         launcher.setInverted(true);
@@ -152,15 +183,16 @@ public class NEW_BOT_axon extends OpMode {
         lut.add(135.0, 65.0);
         lut.add(160.0, 70.0);
 
-        lut.createLUT();
 
-        telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
+        mecanum = new MecanumDrive(false, frontLeft, frontRight,
+                backLeft, backRight);
+        lut.createLUT();
 
         indexer.set(0);
         pitch.set(theta);
-        telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
+
         if (PoseStorage.currentPose != null) {
             follower.setStartingPose(PoseStorage.currentPose);
             telemetry.addLine("Localization: PASSED FROM AUTON");
@@ -169,7 +201,6 @@ public class NEW_BOT_axon extends OpMode {
             telemetry.addLine("Localization: DEFAULT USED");
         }
         follower.update();
-        telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
 
         initAprilTag();
 
@@ -193,6 +224,10 @@ public class NEW_BOT_axon extends OpMode {
             light.setPosition(1);
         }
 
+        if (visionActive) {
+
+        }
+
     }
 
     @Override
@@ -202,6 +237,7 @@ public class NEW_BOT_axon extends OpMode {
 
     @Override
     public void loop() {
+        mecanum.driveRobotCentric(gamepad1.left_stick_x, gamepad1.left_stick_y, gamepad1.right_stick_x, false);
 
         distance = distanceSensor.getDistance(DistanceUnit.MM);
         hueIntake = JavaUtil.colorToHue(colorSensorIntake.getNormalizedColors().toColor());
@@ -220,26 +256,6 @@ public class NEW_BOT_axon extends OpMode {
                 exposureControl.setExposure(2, TimeUnit.MILLISECONDS);
             }
         }
-
-        if (!slowMode) follower.setTeleOpDrive(
-                -gamepad1.left_stick_y,
-                -gamepad1.left_stick_x,
-                -gamepad1.right_stick_x,
-                false
-        );
-            //This is how it looks with slowMode on
-        else follower.setTeleOpDrive(
-                -gamepad1.left_stick_y * .5,
-                -gamepad1.left_stick_x * .5,
-                -gamepad1.right_stick_x * .5,
-                false
-        );
-
-        if (gamepad1.startWasPressed()) {
-            slowMode = !slowMode;
-        }
-
-        telemetryM.update();
 
         double deltaX = follower.getPose().getX() - scorePose.getX();
         double deltaY = follower.getPose().getY() - scorePose.getY();
@@ -285,22 +301,70 @@ public class NEW_BOT_axon extends OpMode {
             launcher.setVelocity(0);
         }
 
-        double targetFieldAngleDeg = Math.toDegrees(Math.atan2(-deltaY, -deltaX));
-        double currentTurretWorldHeading = Math.toDegrees(follower.getHeading()) + getTurretAngleDeg();
-        double errorAngle = targetFieldAngleDeg - currentTurretWorldHeading;
+        // ---------------- TURRET AIMING ----------------
+
+// 1) Auto-zero turret once (robot must start with turret facing forward)
+        if (!turretZeroed) {
+            turretZeroOffsetDeg = getTurretAngleDegRaw();
+            turretZeroed = true;
+        }
+
+// 2) Vector from robot → goal (FIELD frame)
+        double dx = scorePose.getX() - follower.getPose().getX();
+        double dy = scorePose.getY() - follower.getPose().getY();
+
+// 3) Field-centric angle to goal
+        double targetFieldAngleDeg =
+                Math.toDegrees(Math.atan2(dy, dx));
+
+// 4) Robot heading (field-centric)
+        double robotHeadingDeg =
+                Math.toDegrees(follower.getHeading()) * -1;
+
+// 5) Desired turret angle RELATIVE TO ROBOT
+        double targetTurretAngleDeg =
+                targetFieldAngleDeg - robotHeadingDeg;
+
+        targetTurretAngleDeg = normalizeAngle(targetTurretAngleDeg);
+
+// 6) Current turret angle RELATIVE TO ROBOT
+        double currentTurretAngleDeg =
+                getTurretAngleDegRaw() - turretZeroOffsetDeg;
+
+        currentTurretAngleDeg = normalizeAngle(currentTurretAngleDeg);
+
+// 7) Error (what the turret must correct)
+        double errorAngle =
+                targetTurretAngleDeg - currentTurretAngleDeg;
+
         errorAngle = normalizeAngle(errorAngle);
 
-        if (Math.abs(errorAngle) > TURRET_DEADBAND_DEG) {
-            double turretPower = errorAngle * 0.02;
+// 8) PD controller
+        double errorDerivative = clamp(
+                errorAngle - lastTurretError,
+                -10,
+                10
+        );
 
-            turretPower = Math.max(-1.0, Math.min(1.0, turretPower));
+        double turretPower =
+                errorAngle * TURRET_KP +
+                        errorDerivative * TURRET_KD;
 
-            yaw1.set(turretPower);
-            yaw2.set(turretPower);
-        } else {
-            yaw1.set(0);
-            yaw2.set(0);
+// 9) Deadband
+        if (Math.abs(errorAngle) < TURRET_DEADBAND_DEG) {
+            turretPower = 0;
         }
+
+// 10) Clamp + apply
+        turretPower = Math.max(-1.0, Math.min(1.0, turretPower));
+        yaw1.set(-turretPower);
+
+// 11) Save state
+        lastTurretError = errorAngle;
+
+// ---------------- END TURRET ----------------
+
+
 
         // Agitator
         if (gamepad1.right_trigger != 0) {
@@ -356,14 +420,17 @@ public class NEW_BOT_axon extends OpMode {
         if (s == 2 && indexerColor1 == 1 || s == 1 && indexerColor2 == 1 || s == 0 && indexerColor3 == 1) {
             light.setPwmEnable();
             light.setPosition(0.455);
+            telemetry.speak("Purple");
         } else if (s == 2 && indexerColor1 == 2 || s == 1 && indexerColor2 == 2 || s == 0 && indexerColor3 == 2) {
             light.setPwmEnable();
             light.setPosition(0.725);
+            telemetry.speak("Green");
         }   else if (s == 2 && indexerColor1 == 3 || s == 1 && indexerColor2 == 3 || s == 0 && indexerColor3 == 3) {
             light.setPwmDisable();
         } else if (launcher.getVelocity() <= velocityTPS+100 && launcher.getVelocity() >= velocityTPS-100) {
             light.setPwmEnable();
             light.setPosition(0.633);
+            telemetry.speak("Target velocity achieved");
         }
 
         // Indexer control
@@ -416,8 +483,12 @@ public class NEW_BOT_axon extends OpMode {
         telemetry.addData("indexer color 3", indexerColor3);
         telemetry.addData("kS", kS);
         telemetry.addData("kV", kV);
-        //telemetry.addData("bearing", currentAlliance == 0 ? Objects.requireNonNull(tag24).ftcPose.bearing : Objects.requireNonNull(tag20).ftcPose.bearing);
+        telemetry.addData("Target Turret Deg", targetTurretAngleDeg);
+        telemetry.addData("Current Turret Deg", currentTurretAngleDeg);
+        telemetry.addData("Turret Error Deg", errorAngle);
+        telemetry.addData("Turret Power", turretPower);
 
+        telemetry.setAutoClear(true);
 
         // Telemetry
         panelsTelemetry.addData("distance to target (in)", distanceToTarget);

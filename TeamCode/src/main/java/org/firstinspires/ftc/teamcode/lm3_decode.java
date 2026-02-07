@@ -6,6 +6,7 @@ import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.util.Timer;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.IMU;
@@ -31,6 +32,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.concurrent.TimeUnit;
 
+@Disabled
 @Configurable
 @Autonomous(name = "new bot auton", group = "lm2 2025")
 public class lm3_decode extends OpMode {
