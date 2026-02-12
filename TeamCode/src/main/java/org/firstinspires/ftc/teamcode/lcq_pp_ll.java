@@ -2,6 +2,8 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.seattlesolvers.solverslib.util.MathUtils.clamp;
 
+import static org.firstinspires.ftc.teamcode.PoseStorage.currentPose;
+
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
@@ -49,7 +51,7 @@ public class lcq_pp_ll extends OpMode {
     int currentAlliance = 0;
     private TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
     IMU imu;
-    private CRServoEx yaw1 = null;
+    private MotorEx yaw1 = null;
     double theta;
     public static double kS = 0;
     public static double kV = 0;
@@ -63,7 +65,7 @@ public class lcq_pp_ll extends OpMode {
     Pose scorePose = new Pose(132.12651646447142, 136.18370883882147);
     double distanceToTarget;
     private Motor turretEncoder;
-    private final int ticks_per_degree = 12;
+    private final int ticks_per_rev = 10000;
 
     @Override
     public void init() {
@@ -79,23 +81,29 @@ public class lcq_pp_ll extends OpMode {
         backLeft = new MotorEx(hardwareMap, "backLeft");
         backRight = new MotorEx(hardwareMap, "backRight");
         imu = hardwareMap.get(IMU.class, "imu");
-        yaw1 = new CRServoEx(hardwareMap, "yaw1");
+        yaw1 = new MotorEx(hardwareMap, "yaw1");
         trigger = new ServoEx(hardwareMap, "trigger");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         turretEncoder = new Motor(hardwareMap, "turretEncoder");
 
         turretEncoder.stopAndResetEncoder();
 
-        RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.LEFT;
-        RevHubOrientationOnRobot.UsbFacingDirection  usbDirection  = RevHubOrientationOnRobot.UsbFacingDirection.DOWN;
+        limelight.pipelineSwitch(0);
+
+        yaw1.encoder = turretEncoder.encoder;
+        yaw1.setRunMode(Motor.RunMode.PositionControl);
+        yaw1.setPositionCoefficient(.03);
+        turretEncoder.encoder.setDistancePerPulse(360/ticks_per_rev);
+
+
+        RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.RIGHT;
+        RevHubOrientationOnRobot.UsbFacingDirection  usbDirection  = RevHubOrientationOnRobot.UsbFacingDirection.UP;
 
         RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(logoDirection, usbDirection);
 
         imu.initialize(new IMU.Parameters(orientationOnRobot));
 
         telemetry.setMsTransmissionInterval(11);
-
-        limelight.pipelineSwitch(0);
 
         telemetry.addData(">", "Robot Ready.  Press Play.");
         telemetry.update();
@@ -120,7 +128,7 @@ public class lcq_pp_ll extends OpMode {
         lut.add(85.0,  40.0);
         lut.add(110.0, 55.0);
         lut.add(135.0, 65.0);
-        lut.add(160.0, 70.0);
+        lut.add(204, 70.0);
 
         lut.createLUT();
 
@@ -140,26 +148,30 @@ public class lcq_pp_ll extends OpMode {
         telemetry.addLine("Press left for blue alliance");
         telemetry.addData("Selected Alliance", currentAlliance == 0 ? "Red" : "Blue");
 
+        if (currentPose != null) {
+            telemetry.addData("Current Pose", currentPose);
+        } else if (startingPose == null) {
+            telemetry.addLine("pose not passed from auto");
+        }
+
+
         if (gamepad1.dpadRightWasPressed()) {
             scorePose = new Pose(132.12651646447142, 136.18370883882147);
             currentAlliance = 0;
+            limelight.pipelineSwitch(0);
             light.setPosition(.277);
         } else if (gamepad1.dpadLeftWasPressed()) {
             scorePose = new Pose(11.585788561525153, 136.4332755632582);
             currentAlliance = 1;
+            limelight.pipelineSwitch(1);
             light.setPosition(.611);
         }
 
         LLStatus status = limelight.getStatus();
         LLResult result = limelight.getLatestResult();
 
-        if (result.isValid()) {
+        if (result != null && result.isValid()) {
             Pose3D botpose = result.getBotpose();
-
-            telemetry.addData("tx", result.getTx());
-            telemetry.addData("txnc", result.getTxNC());
-            telemetry.addData("ty", result.getTy());
-            telemetry.addData("tync", result.getTyNC());
 
             telemetry.addData("Botpose", botpose.toString());
 
@@ -171,12 +183,13 @@ public class lcq_pp_ll extends OpMode {
 
             startingPose = new Pose(botpose.getPosition().x, botpose.getPosition().y, botpose.getOrientation().getYaw(AngleUnit.RADIANS), FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE);
             follower.setStartingPose(startingPose);
-            yaw1.set(result.getTy()*.01);
+            telemetry.addData("Starting Pose Read From Limelight", startingPose);
 
         } else {
             telemetry.addData("Limelight", "No data available");
         }
 
+        follower.update();
 
     }
 
@@ -185,8 +198,8 @@ public class lcq_pp_ll extends OpMode {
 
     @Override
     public void loop() {
-        double deltaX = follower.getPose().getX() - scorePose.getX();
-        double deltaY = follower.getPose().getY() - scorePose.getY();
+        double deltaX = scorePose.getX() - follower.getPose().getX();
+        double deltaY = scorePose.getY() - follower.getPose().getY();
 
         YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
         AngularVelocity angularVelocity = imu.getRobotAngularVelocity(AngleUnit.DEGREES);
@@ -196,47 +209,55 @@ public class lcq_pp_ll extends OpMode {
         LLStatus status = limelight.getStatus();
         LLResult result = limelight.getLatestResult();
 
-        if (result.isValid()) {
-            Pose3D botpose = result.getBotpose();
+        if (result != null && result.isValid()) {
+            // Only update pose if the robot's velocity is low
+            boolean isRobotStopped;
 
-            telemetry.addData("tx", result.getTx());
-            telemetry.addData("txnc", result.getTxNC());
-            telemetry.addData("ty", result.getTy());
-            telemetry.addData("tync", result.getTyNC());
-
-            telemetry.addData("Botpose", botpose.toString());
-
-            // Access barcode results
-            List<LLResultTypes.BarcodeResult> barcodeResults = result.getBarcodeResults();
-            for (LLResultTypes.BarcodeResult br : barcodeResults) {
-                telemetry.addData("Barcode", "Data: %s", br.getData());
+            if (follower.getVelocity().getMagnitude() >= .2) {
+                isRobotStopped = false;
+            } else {
+                isRobotStopped = true;
             }
 
-            yaw1.set(result.getTy()*.01);
+            if (isRobotStopped) {
+                Pose3D botpose3d = result.getBotpose();
+                // Convert limelight pose to Pedro Pathing coordinate system
+                Pose limelightPose = new Pose(botpose3d.getPosition().x, botpose3d.getPosition().y, orientation.getYaw(AngleUnit.RADIANS), FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE);
 
-            distanceToTarget = ((getDistance(result.getTa()))+Math.hypot(deltaX, deltaY))/2;
-            theta = lut.get(distanceToTarget);
+                Pose currentPose = follower.getPose();
 
-            Pose currentPose = new Pose(botpose.getPosition().x, botpose.getPosition().y, orientation.getYaw(AngleUnit.RADIANS), FTCCoordinates.INSTANCE).getAsCoordinateSystem(PedroCoordinates.INSTANCE);
-            follower.setPose(currentPose);
+                // Ignore vision data if it's too far from the current pose (noise)
+                if (Math.hypot(limelightPose.getX() - currentPose.getX(), limelightPose.getY() - currentPose.getY()) < 6.0) {
+                    double alpha = 0.1; // Trust factor
 
-        } else {
-            telemetry.addData("Limelight", "No data available");
-            double currentangle = turretEncoder.getCurrentPosition() / ticks_per_degree;
+                    // Weighted average for position
+                    double newX = alpha * limelightPose.getX() + (1.0 - alpha) * currentPose.getX();
+                    double newY = alpha * limelightPose.getY() + (1.0 - alpha) * currentPose.getY();
 
-            double error = currentangle - Math.toDegrees(follower.getHeading());
+                    // Interpolate heading, handling wraparound
+                    double headingError = AngleUnit.normalizeRadians(limelightPose.getHeading() - currentPose.getHeading());
+                    double newHeading = currentPose.getHeading() + alpha * headingError;
 
-            distanceToTarget = Math.hypot(deltaX, deltaY);
-            theta = lut.get(distanceToTarget);
-
-            double targetAngle = Math.tan(deltaY / deltaX);
-
-            if (currentangle == 350 || currentangle == 0) {
-                yaw1.set(0);
-            } else {
-                yaw1.set((error - targetAngle) * .01);
+                    follower.setPose(new Pose(newX, newY, newHeading));
+                    follower.update();
+                }
             }
         }
+
+        distanceToTarget = Math.hypot(deltaX, deltaY);
+        double turretTarget = AngleUnit.normalizeDegrees(
+                Math.toDegrees(Math.atan2(deltaY, deltaX)) - Math.toDegrees(follower.getHeading()));
+        if (result != null && result.isValid()) {
+            double visionCorrectedTarget = AngleUnit.normalizeDegrees(turretTarget - result.getTx());
+            yaw1.setTargetDistance(visionCorrectedTarget);
+        } else {
+            yaw1.setTargetDistance(turretTarget);
+        }
+
+        yaw1.set(.5);
+
+        theta = lut.get(distanceToTarget);
+        pitch.set(theta);
 
         follower.update();
 
@@ -247,8 +268,6 @@ public class lcq_pp_ll extends OpMode {
                 true // Robot Centric
         );
 
-        pitch.set(theta);
-
         if (gamepad1.dpadDownWasPressed()) {
             imu.resetYaw();
         }
@@ -257,8 +276,9 @@ public class lcq_pp_ll extends OpMode {
                 new SimpleMotorFeedforward(kS, kV);
 
         if (gamepad1.left_trigger != 0) {
-            launcher.setVelocity(feedforward.calculate(1500));
-            if (launcher.getVelocity() <= 1520 || launcher.getVelocity() >= 1480) {
+            //launcher.setVelocity(feedforward.calculate(1500));
+            launcher.setVelocity(1500);
+            if (launcher.getVelocity() <= 1520 && launcher.getVelocity() >= 1480) {
                 light.setPosition(.46);
             } else {
                 light.setPosition(.666);
@@ -291,8 +311,10 @@ public class lcq_pp_ll extends OpMode {
         if (gamepad1.right_trigger != 0) {
             trigger.set(1);
             intake.set(1);
-        } else if (gamepad1.rightBumperWasPressed()){
-            semiAuto();
+        } else if (isRobotInTriangle(follower.getPose().getX(), follower.getPose().getY(), 48, 0, 72, 24, 96, 0) && (launcher.getVelocity() <= 1520) && (launcher.getVelocity() >= 1480)) {
+            trigger.set(1);
+        } else if (isRobotInTriangle(follower.getPose().getX(), follower.getPose().getY(), 0, 144, 144, 144, 72, 72) && (launcher.getVelocity() <= 1520) && (launcher.getVelocity() >= 1480)){
+            trigger.set(1);
         } else {
             intake.set(0);
             trigger.set(0);
@@ -313,20 +335,22 @@ public class lcq_pp_ll extends OpMode {
 
     }
 
-    public double getDistance(double ta) {
-        //TODO: Tune this
-        double scale = 30665.95;
-        double distance = (scale/ta);
-        return distance;
+    // Helper to check which side of a line a point is on
+    private double crossProduct(double x1, double y1, double x2, double y2, double x3, double y3) {
+        return (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3);
     }
 
-    private void semiAuto() {
-        if (launcher.getVelocity() != 1500) {
-            trigger.set(0);
-            intake.set(0);
-        }  else {
-            trigger.set(1);
-            intake.set(1);
-        }
+    public boolean isRobotInTriangle(double px, double py, double x1, double y1, double x2, double y2, double x3, double y3) {
+        double d1, d2, d3;
+        boolean has_neg, has_pos;
+
+        d1 = crossProduct(px, py, x1, y1, x2, y2);
+        d2 = crossProduct(px, py, x2, y2, x3, y3);
+        d3 = crossProduct(px, py, x3, y3, x1, y1);
+
+        has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+        has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+        return !(has_neg && has_pos);
     }
 }
