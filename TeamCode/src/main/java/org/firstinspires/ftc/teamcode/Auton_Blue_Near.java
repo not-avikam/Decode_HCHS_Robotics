@@ -26,37 +26,31 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 @Autonomous(name="Near Blue", group="lcq")
 public class Auton_Blue_Near extends OpMode {
-    private Motor turretEncoder;
-    private VisionPortal visionPortal;
     ColorBlobLocatorProcessor colorLocator;
     private Servo light;
     private MotorEx launcher = null;
     private Motor intake = null;
     private Servo trigger = null;
     private ServoEx pitch = null;
-    private CRServoEx yaw1 = null;
     NormalizedColorSensor colorSensor;
-    private final Pose startPose = new Pose(18.432, 120.184, Math.toRadians(54));
+    private final Pose startPose = new Pose(17.9325277177655, 121.18266083765477, Math.toRadians(54));
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer, shootTimer;
     private boolean visionPathActive = false;
     private int pathState;
     private int shootBall;
     private PathChain score1, pickup1, score2, pickup2, score3, pickup3;
-    boolean visionAvailable = false;
-    boolean visionActive = false;
-    boolean tagDetected = false;
     private final Pose scorePose = new Pose(11.826689774696712, 136.3625744877852);
     public void buildPaths() {
 
         pickup1 = follower.pathBuilder().addPath(
                         new BezierCurve(
-                                new Pose(18.432, 120.184),
+                                (startPose),
                                 new Pose(72.828, 65.043),
                                 new Pose(25.648, 84.037)
                         )
                 ).setHeadingInterpolation(
-                HeadingInterpolator.piecewise(
+                        HeadingInterpolator.piecewise(
                                 new HeadingInterpolator.PiecewiseNode(
                                         0,
                                         .45,
@@ -125,15 +119,14 @@ public class Auton_Blue_Near extends OpMode {
         switch (pathState) {
             case 0:
                     follower.followPath(pickup1, false);
-                    Pose preloadPose = new Pose(48,86);
-                    if (follower.getPose() == preloadPose) {
+                    if (Math.hypot(follower.getPose().getX() - 53, follower.getPose().getY() - 83) < 1.0) {
                         follower.pausePathFollowing();
                         shoot();
-                        if (shootBall >= 6) {
+                        if (shootBall >= 2) {
                             follower.resumePathFollowing();
                         }
                     }
-                    if (!follower.isBusy() && shootBall >= 6) {
+                    if (!follower.isBusy() && shootBall >= 2) {
                         setPathState(1);
                     }
                 break;
@@ -146,7 +139,7 @@ public class Auton_Blue_Near extends OpMode {
             case 2:
                 if(!follower.isBusy()) {
                     shoot();
-                    if (shootBall >= 6){
+                    if (shootBall >= 2){
                         follower.followPath(pickup2, false);
                         setPathState(3);
                     }
@@ -167,7 +160,7 @@ public class Auton_Blue_Near extends OpMode {
                     /* Score Sample */
                     shoot();
                     /* Since this is a pathChain, we can have Pedro hold the end point while we are grabbing the sample */
-                    if (shootBall >= 6) {
+                    if (shootBall >= 2) {
                         follower.followPath(pickup3, false);
                         setPathState(5);
                     }
@@ -183,7 +176,7 @@ public class Auton_Blue_Near extends OpMode {
                 setShootBall(0);
                 if(!follower.isBusy()) {
                     shoot();
-                    if (shootBall >= 6) {
+                    if (shootBall >= 2) {
                         telemetry.addLine("Autonomous Routine Completed");
                         telemetry.addLine("Good Luck!");
                         setPathState(9);
@@ -217,19 +210,12 @@ public class Auton_Blue_Near extends OpMode {
         }
     }
 
-    public void finalIntake() {
-        if (!follower.isBusy()) {
-            driveToClosestArtifact();
-        }
-    }
-
     public void shoot() {
 
         switch (shootBall) {
             case 0:
                 follower.pausePathFollowing();
-                if ((launcher.getVelocity()) >= 1500+20 || launcher.getVelocity() <= 1500-20) {
-                    trigger.setPosition(1);
+                if (Math.abs(launcher.getVelocity() - 1500) < 20) {                    trigger.setPosition(1);
                     actionTimer.resetTimer();
                     setShootBall(1);
                 }
@@ -262,34 +248,12 @@ public class Auton_Blue_Near extends OpMode {
     @Override
     public void loop() {
 
-        double height = 30;
-
-        if (visionAvailable && !visionActive && visionPortal != null) {
-            if (visionPortal.getCameraState() == VisionPortal.CameraState.STREAMING) {
-                visionActive = true;
-                telemetry.addLine("vision active");
-                ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
-
-                GainControl gainControl = visionPortal.getCameraControl(GainControl.class);
-                gainControl.setGain(200);
-                if (exposureControl.getMode() != ExposureControl.Mode.Manual) {
-                    exposureControl.setMode(ExposureControl.Mode.Manual);
-                }
-                exposureControl.setExposure(2, TimeUnit.MILLISECONDS);
-            }
-        }
-
         if (follower.getCurrentPathChain() == score1 || follower.getCurrentPathChain() == score2 || follower.getCurrentPathChain() == score3 || shootBall == 0) {
             launcher.setVelocity(1500);
         } else {
             launcher.set(0);
         }
         intake.set(1);
-
-
-        if (!follower.isBusy()) {
-            visionPathActive = false;
-        }
 
         // These loop the movements of the robot, these must be called continuously in order to work
         follower.update();
@@ -321,8 +285,6 @@ public class Auton_Blue_Near extends OpMode {
         colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         light = hardwareMap.get(Servo.class, "light");
-        yaw1 = new CRServoEx(hardwareMap, "yaw1");
-        turretEncoder = new Motor(hardwareMap, "turretEncoder");
 
         shootBall = 0;
 
@@ -371,81 +333,7 @@ public class Auton_Blue_Near extends OpMode {
         opmodeTimer.resetTimer();
         setPathState(0);
         setShootBall(0);
-        ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
-
-        GainControl gainControl = visionPortal.getCameraControl(GainControl.class);
-        gainControl.setGain(255);
-        if (exposureControl.getMode() != ExposureControl.Mode.Manual) {
-            exposureControl.setMode(ExposureControl.Mode.Manual);
-        }
-        exposureControl.setExposure(6, TimeUnit.MILLISECONDS);
-
         telemetry.update();
-    }
-
-    private ColorBlobLocatorProcessor.Blob getClosestArtifact() {
-        List<ColorBlobLocatorProcessor.Blob> blobs = colorLocator.getBlobs();
-        ColorBlobLocatorProcessor.Blob bestBlob = null;
-        double maxRadius = 0;
-
-        for (ColorBlobLocatorProcessor.Blob b : blobs) {
-            double r = b.getCircle().getRadius();
-            if (r > maxRadius) {
-                maxRadius = r;
-                bestBlob = b;
-            }
-        }
-        return bestBlob;
-    }
-
-    private Pose getArtifactTargetPose(ColorBlobLocatorProcessor.Blob blob) {
-        Circle c = blob.getCircle();
-
-        double imageWidth = 640;
-        double centerX = imageWidth / 2.0;
-
-        double xErrorPixels = c.getX() - centerX;
-
-        // Tunables
-        double degreesPerPixel = 0.045;   // tune this
-        double inchesPerRadius = 0.14;   // tune this
-
-        double rawHeadingDeg = xErrorPixels * degreesPerPixel;
-        rawHeadingDeg = Math.max(-15, Math.min(15, rawHeadingDeg));
-        double headingOffset = Math.toRadians(rawHeadingDeg);
-
-        double distance = Math.min(c.getRadius() * inchesPerRadius, 12);
-
-        Pose robotPose = follower.getPose();
-
-        double targetX = robotPose.getX() + distance * Math.cos(robotPose.getHeading() + headingOffset);
-        double targetY = robotPose.getY() + distance * Math.sin(robotPose.getHeading() + headingOffset);
-
-        return new Pose(
-                targetX,
-                targetY,
-                robotPose.getHeading() + headingOffset
-        );
-    }
-
-    public void driveToClosestArtifact() {
-        if (visionPathActive) return;
-
-        ColorBlobLocatorProcessor.Blob blob = getClosestArtifact();
-        if (blob == null) {
-            light.setPosition(.277);
-            return;
-        }
-        Pose target = getArtifactTargetPose(blob);
-
-        Path toArtifact = new Path(
-                new BezierLine(follower.getPose(), target)
-        );
-
-        if (blob.getCircle().getRadius() < 10) return;
-
-        follower.followPath(toArtifact, true);
-        visionPathActive = true;
     }
 
     @Override
