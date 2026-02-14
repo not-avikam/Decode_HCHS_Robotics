@@ -31,6 +31,7 @@ public class Auton_Blue_Near extends OpMode {
     private MotorEx launcher = null;
     private Motor intake = null;
     private Servo trigger = null;
+    private Servo agitator = null;
     private ServoEx pitch = null;
     NormalizedColorSensor colorSensor;
     private final Pose startPose = new Pose(17.9325277177655, 121.18266083765477, Math.toRadians(54));
@@ -215,7 +216,8 @@ public class Auton_Blue_Near extends OpMode {
         switch (shootBall) {
             case 0:
                 follower.pausePathFollowing();
-                if (Math.abs(launcher.getVelocity() - 1500) < 20) {                    trigger.setPosition(1);
+                if (Math.abs(launcher.getVelocity() - 1500) < 20) {
+                    trigger.setPosition(1);
                     actionTimer.resetTimer();
                     setShootBall(1);
                 }
@@ -224,9 +226,14 @@ public class Auton_Blue_Near extends OpMode {
                 follower.resumePathFollowing();
                 if (actionTimer.getElapsedTimeSeconds() > 1) {
                     trigger.setPosition(0);
+                    agitator.setPosition(1);
                     actionTimer.resetTimer();
                     setShootBall(2);
                 }
+                break;
+            case 2:
+                agitator.setPosition(0);
+                setShootBall(3);
                 break;
         }
 
@@ -285,6 +292,7 @@ public class Auton_Blue_Near extends OpMode {
         colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         light = hardwareMap.get(Servo.class, "light");
+        agitator = hardwareMap.get(Servo.class, "agitator");
 
         shootBall = 0;
 
