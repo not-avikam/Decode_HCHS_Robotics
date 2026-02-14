@@ -67,7 +67,6 @@ public class lcq_pp_wc extends OpMode {
     public static Pose startingPose = new Pose(0, 0, Math.toRadians(0));
     Pose scorePose = new Pose(132.12651646447142, 136.18370883882147);
     double distanceToTarget;
-    private Motor turretEncoder;
     private final int ticks_per_rev = 10000;
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
@@ -89,14 +88,12 @@ public class lcq_pp_wc extends OpMode {
         imu = hardwareMap.get(IMU.class, "imu");
         yaw1 = new MotorEx(hardwareMap, "yaw1");
         trigger = new ServoEx(hardwareMap, "trigger");
-        turretEncoder = new Motor(hardwareMap, "turretEncoder");
 
-        turretEncoder.stopAndResetEncoder();
+        yaw1.stopAndResetEncoder();
 
-        yaw1.encoder = turretEncoder.encoder;
         yaw1.setRunMode(Motor.RunMode.PositionControl);
         yaw1.setPositionCoefficient(.03);
-        turretEncoder.encoder.setDistancePerPulse(360/ticks_per_rev);
+        yaw1.encoder.setDistancePerPulse(ticks_per_rev/360);
 
         initAprilTag();
 
@@ -348,20 +345,12 @@ public class lcq_pp_wc extends OpMode {
             light.setPosition(0);
         }
 
-        if (gamepad1.x) {
+        if (gamepad1.right_bumper) {
             intake.set(1);
         } else if (gamepad1.a) {
             intake.set(-1);
         } else {
             intake.set(0);
-        }
-
-        if (gamepad1.left_stick_button) {
-            linearServo1.set(1);
-            linearServo2.set(1);
-        } else {
-            linearServo1.set(-.3);
-            linearServo2.set(-.3);
         }
 
         if (gamepad1.dpadDownWasPressed()) {
