@@ -13,7 +13,6 @@ public class lcq_tuners extends OpMode {
 
     private ServoEx indexer;
     private MotorEx intake;
-    //
     //private ServoEx pitch;
     private ServoEx trigger;
 
