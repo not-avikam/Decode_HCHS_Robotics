@@ -49,6 +49,7 @@ public class lcq_pp_wc extends OpMode {
     private ServoImplEx light;
     private ServoEx pitch;
     private ServoEx trigger;
+    private ServoEx agitator;
     private CRServoEx linearServo1;
     private CRServoEx linearServo2;
     int currentAlliance = 0;
@@ -88,6 +89,7 @@ public class lcq_pp_wc extends OpMode {
         imu = hardwareMap.get(IMU.class, "imu");
         yaw1 = new MotorEx(hardwareMap, "yaw1");
         trigger = new ServoEx(hardwareMap, "trigger");
+        agitator = new ServoEx(hardwareMap, "agitator");
 
         yaw1.stopAndResetEncoder();
 
@@ -355,6 +357,12 @@ public class lcq_pp_wc extends OpMode {
 
         if (gamepad1.dpadDownWasPressed()) {
             imu.resetYaw();
+        }
+
+        if (gamepad1.leftBumperWasPressed()) {
+            agitator.set(1);
+        } else {
+            agitator.set(0);
         }
 
         if (gamepad1.right_trigger != 0) {
