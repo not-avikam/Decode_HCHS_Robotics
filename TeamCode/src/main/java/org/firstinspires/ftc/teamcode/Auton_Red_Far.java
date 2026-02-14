@@ -29,6 +29,7 @@ public class Auton_Red_Far extends OpMode {
     private Servo light;
     ColorBlobLocatorProcessor colorLocator;
     private MotorEx launcher = null;
+    private Servo agitator;
     private Motor intake = null;
     private Servo trigger = null;
     private ServoEx pitch = null;
@@ -208,9 +209,14 @@ public class Auton_Red_Far extends OpMode {
                 follower.resumePathFollowing();
                 if (actionTimer.getElapsedTimeSeconds() > 1) {
                     trigger.setPosition(0);
+                    agitator.setPosition(1);
                     actionTimer.resetTimer();
                     setShootBall(2);
                 }
+                break;
+            case 2:
+                agitator.setPosition(0);
+                setShootBall(3);
                 break;
         }
 
@@ -270,6 +276,7 @@ public class Auton_Red_Far extends OpMode {
         light = hardwareMap.get(Servo.class, "light");
         colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
+        agitator = hardwareMap.get(Servo.class, "agitator");
 
         shootBall = 0;
 
@@ -319,36 +326,6 @@ public class Auton_Red_Far extends OpMode {
         setShootBall(0);
 
         telemetry.update();
-    }
-
-    private Pose getArtifactTargetPose(ColorBlobLocatorProcessor.Blob blob) {
-        Circle c = blob.getCircle();
-
-        double imageWidth = 640;
-        double centerX = imageWidth / 2.0;
-
-        double xErrorPixels = c.getX() - centerX;
-
-        // Tunables
-        double degreesPerPixel = 0.045;   // tune this
-        double inchesPerRadius = 0.14;   // tune this
-
-        double rawHeadingDeg = xErrorPixels * degreesPerPixel;
-        rawHeadingDeg = Math.max(-15, Math.min(15, rawHeadingDeg));
-        double headingOffset = Math.toRadians(rawHeadingDeg);
-
-        double distance = Math.min(c.getRadius() * inchesPerRadius, 12);
-
-        Pose robotPose = follower.getPose();
-
-        double targetX = robotPose.getX() + distance * Math.cos(robotPose.getHeading() + headingOffset);
-        double targetY = robotPose.getY() + distance * Math.sin(robotPose.getHeading() + headingOffset);
-
-        return new Pose(
-                targetX,
-                targetY,
-                robotPose.getHeading() + headingOffset
-        );
     }
 
     @Override
