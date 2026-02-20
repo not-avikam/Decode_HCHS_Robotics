@@ -15,6 +15,7 @@ public class lcq_tuners extends OpMode {
     private MotorEx intake;
     //private ServoEx pitch;
     private ServoEx trigger;
+    private MotorEx yaw1;
 
     double position1 = 0;
     double position2 = 240;
@@ -33,6 +34,7 @@ public class lcq_tuners extends OpMode {
        launcher = new MotorEx(hardwareMap, "launcher");
        trigger = new ServoEx(hardwareMap, "trigger");
        intake = new MotorEx(hardwareMap, "intake");
+       yaw1 = new MotorEx(hardwareMap, "yaw1");
 
        intake.setInverted(true);
 
@@ -40,6 +42,8 @@ public class lcq_tuners extends OpMode {
        launcher.setRunMode(MotorEx.RunMode.VelocityControl);
        launcher.setZeroPowerBehavior(MotorEx.ZeroPowerBehavior.FLOAT);
 
+
+       yaw1.stopAndResetEncoder();
 
     }
 
@@ -99,7 +103,11 @@ public class lcq_tuners extends OpMode {
         }
 
         telemetry.addData("launcher pace", launcher.getVelocity());
+        telemetry.addLine("Laucher target 1500");
+        telemetry.addLine();
         telemetry.addData("targetPosition", targetPosition);
+        telemetry.addLine();
+        telemetry.addData("yaw encoders", yaw1.getCurrentPosition());
 
         telemetry.update();
 

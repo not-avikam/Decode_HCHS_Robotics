@@ -39,7 +39,6 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.concurrent.TimeUnit;
 
-@Disabled
 @Configurable
 @TeleOp(name = "emergency teleop", group = "lm2 2025")
 public class emergency_teleop extends OpMode {

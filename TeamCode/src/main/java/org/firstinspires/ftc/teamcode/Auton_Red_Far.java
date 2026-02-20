@@ -200,7 +200,7 @@ public class Auton_Red_Far extends OpMode {
             case 0:
                 follower.pausePathFollowing();
                 if (Math.abs(launcher.getVelocity() - 1500) < 20) {
-                    trigger.setPosition(1);
+                    trigger.setPosition(0);
                     actionTimer.resetTimer();
                     setShootBall(1);
                 }
@@ -208,7 +208,7 @@ public class Auton_Red_Far extends OpMode {
             case 1:
                 follower.resumePathFollowing();
                 if (actionTimer.getElapsedTimeSeconds() > 1) {
-                    trigger.setPosition(0);
+                    trigger.setPosition(0.2);
                     agitator.setPosition(1);
                     actionTimer.resetTimer();
                     setShootBall(2);
@@ -274,7 +274,6 @@ public class Auton_Red_Far extends OpMode {
         intake = new Motor(hardwareMap, "intake");
         trigger = hardwareMap.get(Servo.class, "trigger");
         light = hardwareMap.get(Servo.class, "light");
-        colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_intake");
         pitch = new ServoEx(hardwareMap, "pitch", 0, 1800);
         agitator = hardwareMap.get(Servo.class, "agitator");
 
@@ -292,7 +291,7 @@ public class Auton_Red_Far extends OpMode {
         launcher.setZeroPowerBehavior(MotorEx.ZeroPowerBehavior.BRAKE);
 
         //ensures that all servos start at the correct position
-        trigger.setPosition(0);
+        trigger.setPosition(.2);
         //sets pid values for the launcher
         launcher.setVeloCoefficients(0.6, 0, 0);
 
@@ -308,7 +307,7 @@ public class Auton_Red_Far extends OpMode {
         follower.setStartingPose(startPose);
 
         pitch.set(0);
-        trigger.setPosition(0);
+        trigger.setPosition(.2);
     }
 
     /** This method is called continuously after Init while waiting for "play". **/
