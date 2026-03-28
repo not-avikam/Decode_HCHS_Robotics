@@ -3,6 +3,8 @@ package org.firstinspires.ftc.teamcode;
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.seattlesolvers.solverslib.controller.PIDController;
+import com.seattlesolvers.solverslib.controller.PIDFController;
 import com.seattlesolvers.solverslib.controller.wpilibcontroller.SimpleMotorFeedforward;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
 import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
@@ -12,6 +14,7 @@ import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 public class lcq_tuners extends OpMode {
 
     private ServoEx indexer;
+    public static double velocity;
     private MotorEx intake;
     //private ServoEx pitch;
     private ServoEx trigger;
@@ -25,6 +28,7 @@ public class lcq_tuners extends OpMode {
     public static double kP = 0;
     public static double kI = 0;
     public static double kD = 0;
+    public static double kF = 0;
     public static double kS = 0;
     public static double kV = 0;
     @Override
@@ -36,12 +40,13 @@ public class lcq_tuners extends OpMode {
        intake = new MotorEx(hardwareMap, "intake");
        yaw1 = new MotorEx(hardwareMap, "yaw1");
 
+       launcher.setVeloCoefficients(kP, kI, kD);
+
        intake.setInverted(true);
 
        launcher.setInverted(true);
        launcher.setRunMode(MotorEx.RunMode.VelocityControl);
        launcher.setZeroPowerBehavior(MotorEx.ZeroPowerBehavior.FLOAT);
-
 
        yaw1.stopAndResetEncoder();
 
@@ -62,10 +67,11 @@ public class lcq_tuners extends OpMode {
         SimpleMotorFeedforward feedforward =
                 new SimpleMotorFeedforward(kS, kV);
 
-        launcher.setVeloCoefficients(kP, kI, kD);
+        //launcher.setVeloCoefficients(kP, kI, kD);
+
 
         if (gamepad1.left_trigger != 0) {
-            launcher.setVelocity(feedforward.calculate(1500));
+            launcher.setVelocity(velocity);
         }
 
         if (gamepad1.right_trigger != 0) {
@@ -81,6 +87,7 @@ public class lcq_tuners extends OpMode {
         }
 
         if (gamepad1.yWasPressed()) {
+            targetPosition += 5;
             targetPosition += 5;
             position2 += 5;
             position3 += 5;

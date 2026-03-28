@@ -4,33 +4,24 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.HeadingInterpolator;
-import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.seattlesolvers.solverslib.hardware.motors.CRServoEx;
 import com.seattlesolvers.solverslib.hardware.motors.Motor;
 import com.seattlesolvers.solverslib.hardware.motors.MotorEx;
 import com.seattlesolvers.solverslib.hardware.servos.ServoEx;
 import com.seattlesolvers.solverslib.util.InterpLUT;
 
-import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
-import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.GainControl;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-import org.firstinspires.ftc.vision.VisionPortal;
-import org.firstinspires.ftc.vision.opencv.Circle;
 import org.firstinspires.ftc.vision.opencv.ColorBlobLocatorProcessor;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-@Autonomous(name="Far Red", group="lcq")
-public class Auton_Red_Far extends OpMode {
+
+@Autonomous(name="Far Blue", group="lcq")
+public class Auton_Blue_Far extends OpMode {
     private Servo light;
     ColorBlobLocatorProcessor colorLocator;
-    double targetDistance;
     private MotorEx launcher = null;
     InterpLUT lut;
 
@@ -41,72 +32,73 @@ public class Auton_Red_Far extends OpMode {
     private Servo trigger = null;
     private ServoEx pitch = null;
     NormalizedColorSensor colorSensor;
-    private final Pose startPose = new Pose(85.698, 11.244, Math.toRadians(75));
+    private final Pose startPose = new Pose(58.745, 11.244, Math.toRadians(109));
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer, shootTimer;
     private int pathState;
     private int shootBall;
     private PathChain score1, pickup1, score2, pickup2, score3, pickup3;
-    private final Pose scorePose = new Pose(131, 136);
+    private final Pose scorePose = new Pose(11, 136);
+    double targetDistance;
     public void buildPaths() {
 
         pickup1 = follower.pathBuilder().addPath(
                         new BezierCurve(
-                                new Pose(85.698, 11.244),
-                                new Pose(94.932, 38.596),
-                                new Pose(132.118, 35.750)
+                                new Pose(58.745, 11.244),
+                                new Pose(58.745, 39.095),
+                                new Pose(12.326, 35.501)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(75), Math.toRadians(-20))
+                ).setLinearHeadingInterpolation(Math.toRadians(109), Math.toRadians(200))
 
                 .build();
 
         score1 = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(132.118, 35.750),
+                                new Pose(12.326, 35.501),
 
-                                new Pose(87.823, 13.768)
+                                new Pose(56.128, 12.270)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(-20), Math.toRadians(75))
+                ).setLinearHeadingInterpolation(Math.toRadians(200), Math.toRadians(109))
 
                 .build();
 
         pickup2 = follower.pathBuilder().addPath(
                         new BezierCurve(
-                                new Pose(87.823, 13.768),
-                                new Pose(70.302, 67.107),
-                                new Pose(132.629, 57.308)
+                                new Pose(56.128, 12.270),
+                                new Pose(62.566, 70.101),
+                                new Pose(12.588, 55.811)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(75), Math.toRadians(-10))
+                ).setLinearHeadingInterpolation(Math.toRadians(109), Math.toRadians(180))
 
                 .build();
 
         score2 = follower.pathBuilder().addPath(
                         new BezierCurve(
-                                new Pose(132.629, 57.308),
-                                new Pose(104.788, 57.530),
-                                new Pose(85.920, 80.203)
+                                new Pose(12.588, 55.811),
+                                new Pose(45.640, 68.262),
+                                new Pose(53.227, 80.702)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(-10), Math.toRadians(52))
+                ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(128))
 
                 .build();
 
         pickup3 = follower.pathBuilder().addPath(
                         new BezierCurve(
-                                new Pose(85.920, 80.203),
-                                new Pose(109.345, 77.542),
-                                new Pose(125.532, 85.851)
+                                new Pose(53.227, 80.702),
+                                new Pose(49.948, 83.531),
+                                new Pose(19.716, 84.853)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(52), Math.toRadians(-15))
+                ).setLinearHeadingInterpolation(Math.toRadians(128), Math.toRadians(190))
 
                 .build();
 
         score3 = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(125.532, 85.851),
+                                new Pose(19.716, 84.853),
 
-                                new Pose(106.861, 98.745)
+                                new Pose(44.969, 92.756)
                         )
-                ).setLinearHeadingInterpolation(Math.toRadians(-15), Math.toRadians(52))
+                ).setLinearHeadingInterpolation(Math.toRadians(190), Math.toRadians(128))
 
                 .build();
     }
@@ -220,7 +212,7 @@ public class Auton_Red_Far extends OpMode {
                 break;
             case 1:
                 follower.resumePathFollowing();
-                if (actionTimer.getElapsedTimeSeconds() > 1) {
+                if (actionTimer.getElapsedTimeSeconds() > 5) {
                     trigger.setPosition(0.2);
                     intake.set(0);
                     agitator.setPosition(1);
@@ -257,14 +249,14 @@ public class Auton_Red_Far extends OpMode {
         follower.update();
         autonomousPathUpdate();
 
+        targetDistance = (Math.sqrt(Math.pow((follower.getPose().getX()-scorePose.getX()), 2)+(Math.pow(follower.getPose().getY() - scorePose.getY(), 2))));
+        pitch.set(lut.get(targetDistance));
+
         if (follower.isBusy()) {
             telemetry.addLine("follower is busy");
         } else {
             telemetry.addLine("follower is finished");
         }
-
-        targetDistance = (Math.sqrt(Math.pow((follower.getPose().getX()-scorePose.getX()), 2)+(Math.pow(follower.getPose().getY() - scorePose.getY(), 2))));
-        pitch.set(lut.get(targetDistance));
 
         telemetry.addData("actual launcher velocity", launcher.getVelocity());
         telemetry.addData("x", follower.getPose().getX());
